@@ -12,7 +12,7 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 -->
 
-🔭 .Net / Node.js / DevOps stuff mostly.
+🔭 .Net / DevOps stuff mostly.
 
 📫 How to reach me: https://www.linkedin.com/in/georgi-todorov-3077b156/
 
