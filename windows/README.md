@@ -1,4 +1,4 @@
-# Fix a frozen/unresponsive/stucked Windows 10/11 Start Menu by fixing windows files
+# Fix a frozen/unresponsive/stucked Windows 10/11 Start Menu or just repair.
 
 1. open powershell with Administrator Privileges
 2. execute ```sfc /scannow```
