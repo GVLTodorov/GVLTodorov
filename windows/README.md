@@ -9,3 +9,8 @@
 
 1. open powershell
 2. powercfg /batteryreport /output "C:\battery-report.html"
+
+# Export Windows Drivers
+
+1. open powershell as admin.
+2. ```Export-WindowsDriver -Online -Destination C:\Drivers```
