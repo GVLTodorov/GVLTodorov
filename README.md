@@ -68,6 +68,6 @@ As always, however, remember to keep your laptop properly ventilated and cool to
 
 🔭 .Net / DevOps / Docker
 
-[![Linkedin](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/georgi-todorov-3077b156/)
+[![Linkedin](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/gvltodorov/)
 
 <a href="https://www.buymeacoffee.com/gvltodorov" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
