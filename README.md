@@ -9,6 +9,8 @@ complex ideas and communicate in a concise and efficient manner.
 
 Символите имат голямо значение, тъй като ни улесняват изразяването на сложни идеи и 
 позволяват ефективна комуникация в съкратен формат.
+
+[Facts](https://github.com/GVLTodorov/GVLTodorov/tree/main/FACTS.MD)
 ```
 
 ### Tutorials
