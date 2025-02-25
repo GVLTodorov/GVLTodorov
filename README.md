@@ -17,11 +17,11 @@ complex ideas and communicate in a concise and efficient manner.
 
 [Runner](https://github.com/GVLTodorov/Runner)
 
-[![Build](https://github.com/GVLTodorov/Runner/actions/workflows/build.yml/badge.svg)](https://github.com/GVLTodorov/Runner/actions/workflows/build.yml)
-
 [Cronner](https://github.com/GVLTodorov/Cronner) 
 
-[![Build](https://github.com/GVLTodorov/Cronner/actions/workflows/build.yml/badge.svg)](https://github.com/GVLTodorov/Cronner/actions/workflows/build.yml)
+[WeatherExporrter](https://github.com/GVLTodorov/WeatherExporrter)
+
+[XiaomiExporrter](https://github.com/GVLTodorov/XiaomiExporrter)
 
 ### Stats
 
