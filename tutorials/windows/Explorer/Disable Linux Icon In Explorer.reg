@@ -1,0 +1,9 @@
+Windows Registry Editor Version 5.00
+
+; Created by: Shawn Brink
+; Created on: November 5, 2021
+; Tutorial: https://www.elevenforum.com/t/add-or-remove-linux-in-navigation-pane-of-file-explorer-in-windows-11.2531/
+
+[HKEY_CURRENT_USER\Software\Classes\CLSID\{B2B4A4D1-2754-4140-A2EB-9A76D9D7CDC6}]
+@="Linux"
+"System.IsPinnedToNameSpaceTree"=dword:00000000

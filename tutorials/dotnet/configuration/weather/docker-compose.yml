@@ -1,0 +1,9 @@
+services:
+  api:
+    image: weather/api:latest
+    container_name: api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development # optional
+    ports:
+      - 9015:80
