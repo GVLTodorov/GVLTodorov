@@ -1,27 +1,31 @@
-windows 10
+## 🖥️ Windows 10
 
-:: Set "Old" Explorer Context Menu as Default
-reg add "HKEY_CURRENT_USER\SOFTWARE\CLASSES\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /ve /f
+Set "Old" Explorer Context Menu as Default
 
-:: Remove Explorer "Command Bar"
-reg add "HKCU\Software\Classes\CLSID\{d93ed569-3b3e-4bff-8355-3c44f6a52bb5}\InprocServer32" /f /ve
+```reg add "HKEY_CURRENT_USER\SOFTWARE\CLASSES\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /ve /f```
 
-:: Restart Windows Explorer. (Applies the above settings without needing a reboot)
-taskkill /f /im explorer.exe
-start explorer.exe
+Remove Explorer "Command Bar"
 
-:: Empty Comment (Prevents you from having to press "enter" to execute the line to restart explorer.exe)
+```reg add "HKCU\Software\Classes\CLSID\{d93ed569-3b3e-4bff-8355-3c44f6a52bb5}\InprocServer32" /f /ve```
 
-windows 11
+Restart Windows Explorer. (Applies the above settings without needing a reboot)
 
-:: Restore Win 11 Explorer Context Menu
-reg.exe delete "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}" /f
+```taskkill /f /im explorer.exe```
 
-:: Restore Win 11 Explorer Command Bar
-reg.exe delete "HKCU\Software\Classes\CLSID\{d93ed569-3b3e-4bff-8355-3c44f6a52bb5}" /f
+```start explorer.exe```
 
-:: Restart Windows Explorer. (Applies the above settings without needing a reboot)
-taskkill /f /im explorer.exe
-start explorer.exe
+## 🖥️ Windows 11
 
-:: Empty Comment (Prevents you from having to press "enter" to execute the line to restart explorer.exe)
+Restore Win 11 Explorer Context Menu
+
+```reg.exe delete "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}" /f```
+
+Restore Win 11 Explorer Command Bar
+
+```reg.exe delete "HKCU\Software\Classes\CLSID\{d93ed569-3b3e-4bff-8355-3c44f6a52bb5}" /f```
+
+Restart Windows Explorer. (Applies the above settings without needing a reboot)
+
+```taskkill /f /im explorer.exe```
+
+```start explorer.exe```
