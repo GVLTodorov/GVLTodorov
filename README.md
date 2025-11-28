@@ -31,10 +31,10 @@ complex ideas and communicate in a concise and efficient manner.
 
 ### Trophies
 
-<img align="center" src="https://github-profile-trophy.vercel.app/?username=gvltodorov&rank=-C,-B&margin-w=48" alt="GitHub Trophies" />
+[![trophy](https://github-profile-trophy.vercel.app/?username=gvltodorov&theme=flat&row=2&column=3)](https://github.com/ryo-ma/github-profile-trophy)
 
 🔭 .Net / DevOps / Docker
 
-[![Linkedin](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/gvltodorov/)
+[![Linkedin](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white&no-bg=true)](https://www.linkedin.com/in/gvltodorov/)
 
 <a href="https://www.buymeacoffee.com/gvltodorov" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
