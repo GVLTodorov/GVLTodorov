@@ -31,7 +31,8 @@ complex ideas and communicate in a concise and efficient manner.
 
 ### Trophies
 
-[![trophy](https://github-profile-trophy.vercel.app/?username=gvltodorov&theme=flat&row=2&column=3)](https://github.com/ryo-ma/github-profile-trophy)
+![](https://github-trophies.vercel.app/?username=GVLTodorov&theme=fla&row=2&column=3)
+
 
 🔭 .Net / DevOps / Docker
 
