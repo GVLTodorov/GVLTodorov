@@ -16,26 +16,18 @@ sudo apt install curl ca-certificates
 ### For x86_64 systems
 
 ```bash
-curl -fL -o codex.tar.gz \
-https://github.com/openai/codex/releases/latest/download/codex-x86_64-unknown-linux-musl.tar.gz
-
+curl -fL -o codex.tar.gz https://github.com/openai/codex/releases/latest/download/codex-x86_64-unknown-linux-musl.tar.gz
 tar -xzf codex.tar.gz
-
 sudo install -m 0755 codex-x86_64-unknown-linux-musl /usr/local/bin/codex
-
 rm codex.tar.gz codex-x86_64-unknown-linux-musl
 ```
 
 ### For ARM64 systems
 
 ```bash
-curl -fL -o codex.tar.gz \
-https://github.com/openai/codex/releases/latest/download/codex-aarch64-unknown-linux-musl.tar.gz
-
+curl -fL -o codex.tar.gz https://github.com/openai/codex/releases/latest/download/codex-aarch64-unknown-linux-musl.tar.gz
 tar -xzf codex.tar.gz
-
 sudo install -m 0755 codex-aarch64-unknown-linux-musl /usr/local/bin/codex
-
 rm codex.tar.gz codex-aarch64-unknown-linux-musl
 ```
 
