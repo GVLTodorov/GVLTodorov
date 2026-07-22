@@ -23,6 +23,8 @@ complex ideas and communicate in a concise and efficient manner.
 
 [XiaomiExporrter](https://github.com/GVLTodorov/XiaomiExporrter)
 
+[Monorepo](https://github.com/GVLTodorov/Monorepo)
+
 ### Stats
 
 [![Georgi's GitHub stats](https://github-readme-stats-sigma-five.vercel.app/api?username=GVLTodorov&langs_count=5&count_private=true&show_icons=true&theme=merko)](https://github.com/anuraghazra/github-readme-stats)
