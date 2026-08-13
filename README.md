@@ -27,9 +27,9 @@ complex ideas and communicate in a concise and efficient manner.
 
 ### Stats
 
-[![Georgi's GitHub stats](https://github-stats-extended.vercel.app/api?username=GVLTodorov&langs_count=5&count_private=true&show_icons=true&theme=merko)](https://github.com/stats-organization/github-stats-extended)
+[![Georgi's GitHub stats](https://github-readme-stats.vercel.app/api?username=GVLTodorov&langs_count=5&count_private=true&show_icons=true&theme=merko)](https://github.com/anuraghazra/github-readme-stats)
 
-<img align="center" src="https://github-stats-extended.vercel.app/api/top-langs/?username=gvltodorov&layout=compact&hide_border=true" />
+<img align="center" src="https://github-readme-stats.vercel.app/api/top-langs/?username=gvltodorov&layout=compact&hide_border=true" />
 
 ### Trophies
 
