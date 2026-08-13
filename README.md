@@ -4,10 +4,10 @@
 &&, ||, !, =, ,, ;,
 ", '
 
-Symbols are important because they allow us to convey 
+Symbols are important because they allow us to convey
 complex ideas and communicate in a concise and efficient manner.
 
-Символите имат голямо значение, тъй като ни улесняват изразяването на сложни идеи и 
+Символите имат голямо значение, тъй като ни улесняват изразяването на сложни идеи и
 позволяват ефективна комуникация в съкратен формат.
 ```
 
@@ -17,7 +17,7 @@ complex ideas and communicate in a concise and efficient manner.
 
 [Runner](https://github.com/GVLTodorov/Runner)
 
-[Cronner](https://github.com/GVLTodorov/Cronner) 
+[Cronner](https://github.com/GVLTodorov/Cronner)
 
 [WeatherExporrter](https://github.com/GVLTodorov/WeatherExporrter)
 
@@ -27,14 +27,13 @@ complex ideas and communicate in a concise and efficient manner.
 
 ### Stats
 
-[![Georgi's GitHub stats](https://github-readme-stats.vercel.app/api?username=GVLTodorov&langs_count=5&count_private=true&show_icons=true&theme=merko)](https://github.com/anuraghazra/github-readme-stats)
+[![Georgi's GitHub stats](https://github-readme-stats-sigma-five.vercel.app/api?username=GVLTodorov&langs_count=5&count_private=true&show_icons=true&theme=merko)](https://github.com/anuraghazra/github-readme-stats)
 
-<img align="center" src="https://github-readme-stats.vercel.app/api/top-langs/?username=gvltodorov&layout=compact&hide_border=true" />
+<img align="center" src="https://github-readme-stats-sigma-five.vercel.app/api/top-langs/?username=gvltodorov&layout=compact&hide_border=true" />
 
 ### Trophies
 
 ![](https://github-trophies.vercel.app/?username=GVLTodorov&theme=fla&row=2&column=3)
-
 
 🔭 .Net / DevOps / Docker
 
