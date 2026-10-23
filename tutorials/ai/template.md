@@ -3,14 +3,39 @@
 A starter template for running **one "brain" (orchestrator)** that clarifies requirements
 and hands work to **five specialist sub-agents** that work in parallel:
 
-| Agent | Responsibility | Runs in parallel with |
+| Agent | Responsibility | Model | Effort | Runs in parallel with |
+|---|---|---|---|---|
+| **brain** (main session) | Triages the task, asks clarifying questions, writes the spec + API contract, splits work, merges results, reports cost | `opus` | high | — |
+| `frontend` | UI, client state, API client code | `sonnet` | medium | backend, devops |
+| `backend` | API, business logic, data layer, migrations, Swagger | `sonnet` | medium | frontend, devops |
+| `devops` | Dockerfile, compose, CI/CD, versioning, coverage badges, `.vscode` | `sonnet` | medium | frontend, backend |
+| `tester` | Unit/integration/e2e tests against the spec | `sonnet` | medium | after implementation (or alongside, from the contract) |
+| `security` | Read-only review: OWASP, secrets, deps, container hardening | `opus` | high | after implementation |
+
+### Model per agent — and why
+
+| Agent | Model | Why this model |
 |---|---|---|
-| **brain** (main session) | Asks clarifying questions, writes the spec + API contract, splits work, merges results | — |
-| `frontend` | UI, client state, API client code | backend, devops |
-| `backend` | API, business logic, data layer, migrations | frontend, devops |
-| `devops` | Dockerfile, compose, CI/CD, env/config | frontend, backend |
-| `tester` | Unit/integration/e2e tests against the spec | after implementation (or alongside, from the contract) |
-| `security` | Read-only review: OWASP, secrets, deps, container hardening | after implementation |
+| **brain** | `opus` | The hardest thinking in the whole flow: turning vague requirements into a spec and contract, splitting ownership, resolving merge conflicts, judging fix loops. A mistake here repeats across all five agents. |
+| `frontend` | `sonnet` | Well-specified implementation work against a fixed contract. Sonnet is fast and strong at code, and runs in parallel at lower cost. |
+| `backend` | `sonnet` | Same as frontend: the contract has already settled the hard design decisions. |
+| `devops` | `sonnet` | Mostly following known patterns (Dockerfile, CI, `.vscode`) that the templates spell out. |
+| `tester` | `sonnet` | Writes tests from explicit acceptance criteria; high volume, well-defined. |
+| `security` | `opus` | Has to reason across files (auth flows, IDOR, data paths) to find issues nobody pointed it at. Missed findings are costly, and it is read-only, so its token use stays modest. |
+
+**Where the model is set:**
+- Sub-agents: the `model:` (and `effort:`) lines in each `.claude/agents/<name>.md` frontmatter.
+  Model values: `opus`, `sonnet`, `haiku`, `inherit` (use the main session's model), or a full
+  model ID such as `claude-opus-5-5`.
+- Brain: the `model: opus` line in `.claude/skills/task/SKILL.md` switches the session to Opus
+  while `/task` runs. You can also just run `/model opus` before starting.
+- The brain may override a model for a single run (e.g. a light security pass on `sonnet`), as described in its Phase 4.
+
+**When to change it:**
+- Tight budget → put `security` on `sonnet` too; keep the brain on `opus`.
+- Hard or unfamiliar domain (complex algorithms, tricky concurrency) → raise `backend` to `opus`.
+- `haiku` only for very mechanical work: the brain's repo scan in Phase 0, or agents you might add
+  later (docs, formatting). Don't use it for the five above.
 
 ---
 
@@ -19,23 +44,25 @@ and hands work to **five specialist sub-agents** that work in parallel:
 ```
                  ┌──────────────────────────────┐
    you  ───────► │  BRAIN (main Claude session) │  ← only the main session can ask you
-                 │  1. clarify  2. spec+contract │    questions and spawn sub-agents
+                 │  T. triage: S / M / L        │    questions and spawn sub-agents
                  └──────────────┬───────────────┘
-                                │ writes docs/spec.md + docs/api-contract.md
+              S (small) ────────┤──────── M / L
+     brain does it alone        │ clarify → docs/spec.md + docs/api-contract.md
+     or with ONE agent          │
             ┌───────────────────┼───────────────────┐
             ▼                   ▼                   ▼
-       frontend             backend              devops        ← Phase A: parallel
-     (worktree)            (worktree)          (worktree)        (isolated git worktrees)
+       frontend             backend              devops        ← Phase 2: parallel
+     (worktree)            (worktree)          (worktree)        only the agents that have work
             └───────────────────┼───────────────────┘
                                 ▼
                      brain merges branches
                                 │
                  ┌──────────────┴──────────────┐
                  ▼                             ▼
-              tester                       security            ← Phase B: parallel
-                 └──────────────┬──────────────┘
+              tester                       security            ← Phase 4: parallel
+                 └──────────────┬──────────────┘                 (security only if risky files changed)
                                 ▼
-                 brain: fix loop → final report to you
+         brain: fix loop (continue same agents) → report + cost table
 ```
 
 **Two rules make parallelism work:**
@@ -56,21 +83,28 @@ and hands work to **five specialist sub-agents** that work in parallel:
 
 ```
 your-project/
-├── CLAUDE.md                        # project facts every agent reads (stack, commands, folders)
+├── CLAUDE.md                        # project facts + token rules every agent reads
 ├── .vscode/                         # launch.json + tasks.json by devops: F5 runs backend + UI together
 ├── docs/
 │   ├── spec.md                      # written by brain after clarification
 │   ├── api-contract.md              # written by brain, the frontend↔backend contract
-│   └── tasks.md                     # brain's task board (who does what, status)
+│   ├── tasks.md                     # brain's task board (who does what, status)
+│   └── cost-log.md                  # brain appends a cost table after every /task
 └── .claude/
+    ├── settings.json                # blocks reading generated folders (saves tokens)
     ├── skills/
     │   └── task/SKILL.md            # the orchestrator ("brain") → invoke with /task
-    └── agents/
-        ├── frontend.md
-        ├── backend.md
-        ├── devops.md
-        ├── tester.md
-        └── security.md
+    ├── agents/
+    │   ├── frontend.md
+    │   ├── backend.md
+    │   ├── devops.md
+    │   ├── tester.md
+    │   └── security.md
+    └── templates/                   # long reference code, read ONLY when needed
+        ├── swagger-topbar.js
+        ├── ci.yml
+        ├── vscode-launch.jsonc
+        └── vscode-tasks.jsonc
 ```
 
 Copy each block below into the matching file. Replace anything in `<angle brackets>`.
@@ -79,7 +113,7 @@ Copy each block below into the matching file. Replace anything in `<angle bracke
 
 ## 3. `CLAUDE.md` (shared project context)
 
-Every agent reads this automatically. Keep it short and factual.
+Every agent reads this automatically, so keep it short; it is paid for on every agent start.
 
 ```markdown
 # Project: <name>
@@ -94,7 +128,8 @@ Every agent reads this automatically. Keep it short and factual.
 - Install:  <npm ci>
 - Dev:      <docker compose up>
 - Lint:     <npm run lint>
-- Test:     <npm test>  /  e2e: <npx playwright test>
+- Test:     <npm test -- --reporter=dot>  /  e2e: <npx playwright test --reporter=line>
+- Test one file: <npm test -- path/to/file.test.ts --reporter=dot>
 
 ## Rules
 - The API contract in `docs/api-contract.md` is the source of truth. Don't change it
@@ -109,6 +144,18 @@ Every agent reads this automatically. Keep it short and factual.
 - Commit only on your own branch; never push to main.
 - Use Conventional Commits (`feat:`, `fix:`, `chore:`, `feat!:` …). CI derives the image
   version from them, so the wrong prefix gives the wrong version bump.
+
+## Token rules (every agent)
+- Read only what your task needs: your task IDs' sections of `docs/spec.md` and
+  `docs/api-contract.md`, and files in your folders. Use Grep/Glob to find code, then read the
+  relevant part, not whole large files.
+- Never read generated folders: `node_modules`, `dist`, `build`, `coverage`, lockfiles.
+- Quiet commands: tests with `--reporter=dot` (or `--silent`), installs with `--silent`,
+  and pipe long output through `| tail -n 50`.
+- While fixing, run only the affected test files. Run the full suite once, at the end.
+- Read files in `.claude/templates/` only when your task creates or changes that piece.
+- Reports: **max ~150 words or one table.** No full logs: quote only the failing lines
+  (max 20), and never paste whole files or diffs.
 ```
 
 ---
@@ -118,15 +165,32 @@ Every agent reads this automatically. Keep it short and factual.
 ```markdown
 ---
 name: task
-description: Orchestrator for a feature. Clarifies requirements with the user, writes the spec and API contract, then dispatches frontend/backend/devops/tester/security sub-agents in parallel and integrates their work. Use on /task or when the user wants to start a new feature with the agent team.
+model: opus
+description: Orchestrator for a feature. Triages the task, clarifies requirements with the user, writes the spec and API contract, then dispatches frontend/backend/devops/tester/security sub-agents in parallel, integrates their work and reports the cost. Use on /task or when the user wants to start a new feature with the agent team.
 ---
 
-You are the **lead engineer and orchestrator**. You do not write feature code yourself;
-you clarify, plan, delegate, integrate, and verify.
+You are the **lead engineer and orchestrator**. For M/L tasks you do not write feature code
+yourself; you clarify, plan, delegate, integrate, and verify. You run on the most expensive
+model, so delegate reading and doing, and keep your own context small.
 
-## Phase 0 — Clarify (never skip)
-1. Read `CLAUDE.md` and skim the repo to learn what already exists.
-2. Ask the user **at most 5 focused questions**, using the AskUserQuestion tool, covering
+## Phase T — Triage (always first)
+Classify the request and say which size you picked and why, in one line:
+- **bootstrap** (`/task bootstrap`, or `.github/workflows/ci.yml` / `.vscode/launch.json` are
+  missing): a one-time setup run. Spawn only `devops` to create Dockerfile, compose, CI with
+  coverage badges + versioned image release, and `.vscode`. Then skip to Phase 6.
+- **S (small)**: a bug fix or small change in ≤ ~3 files in one area. **No team.** Skip
+  the spec/contract docs. Do it yourself, or spawn the ONE owning agent with a short prompt. Run
+  the affected tests, then go to Phase 6.
+- **M (medium)**: one area, or a small change across areas. Clarify briefly, update only
+  the affected parts of the docs, and spawn **only the agents that have tasks**.
+- **L (large)**: a new feature across frontend + backend. Run all phases.
+Never spawn `devops` for a feature unless it changes Docker, compose, CI, env files or `.vscode`.
+
+## Phase 0 — Clarify (M/L)
+1. Read `CLAUDE.md`. To learn what exists, spawn the built-in `Explore` agent with
+   `model: "haiku"` and ask for a ≤150-word summary of the relevant code. Don't skim the
+   repo yourself.
+2. Ask the user **at most 5 focused questions** in one AskUserQuestion call, covering
    only what you can't infer:
    - Goal & users: what problem, who uses it, what does "done" look like?
    - Scope: must-have vs. nice-to-have; explicitly out of scope?
@@ -136,52 +200,122 @@ you clarify, plan, delegate, integrate, and verify.
    Offer a recommended default for each so the user can just accept.
 3. Restate the requirements in 5–10 bullet points and get an explicit "yes" before Phase 1.
 
-## Phase 1 — Spec & contract
+## Phase 1 — Spec & contract (M/L)
 Write these files, then show the user a short summary:
-- `docs/spec.md` — user stories with **acceptance criteria** (Given/When/Then), out-of-scope list.
+- `docs/spec.md` — user stories with **acceptance criteria** (Given/When/Then, IDs like `AC-3`),
+  out-of-scope list. Use one heading per area so agents can read only their section.
 - `docs/api-contract.md` — every endpoint: method, path, auth, request schema, response
   schema, error codes, example payloads. Include shared types/enums.
 - `docs/tasks.md` — task table: `ID | Agent | Task | Files owned | Depends on | Status`.
   Each file/folder is owned by exactly ONE agent. No overlaps.
 
 ## Phase 2 — Parallel build
-Spawn `frontend`, `backend`, and `devops` **in the same message** so they run in parallel,
-each with `isolation: "worktree"`. Every prompt you send must contain:
-- The task IDs from `docs/tasks.md` it owns, and the exact folders it may edit.
-- Pointers to `docs/spec.md` and `docs/api-contract.md` (tell it to read them).
-- The acceptance criteria it is responsible for.
+Spawn **only the agents with tasks**, **in the same message** so they run in parallel,
+each with `isolation: "worktree"`. Keep every prompt short (≤ ~200 words) and self-contained:
+- The task IDs it owns, the exact folders it may edit, and the acceptance-criteria IDs it covers.
+- Which sections of `docs/spec.md` / `docs/api-contract.md` to read (by heading). Point to
+  files; don't paste their content.
 - "Done means": builds, lints, its own unit tests pass, branch committed.
-- "Report back: branch name, files changed, commands you ran + results, open questions,
-  any contract change you need (do NOT make it yourself)."
+- "Report back in ≤150 words: branch, files changed, check results (pass/fail + failing lines
+  only), open questions, any contract change you need (do NOT make it yourself)."
+Record each agent's **name/ID** so you can continue it later (Phase 5).
 
 ## Phase 3 — Integrate
 1. Review each report. If an agent requests a contract change, decide, update
-   `docs/api-contract.md`, and re-dispatch the affected agents.
+   `docs/api-contract.md`, and continue the affected agents.
 2. Merge the branches into an integration branch; resolve conflicts yourself.
-3. Run build + lint + tests. If broken, send the failure output back to the owning agent.
+3. Run build + lint + tests with quiet output (`| tail -n 50`). If broken, send the failing
+   lines to the owning agent.
 
 ## Phase 4 — Verify (parallel)
-Spawn `tester` and `security` **in the same message** against the integration branch.
+Spawn in the same message, against the integration branch:
+- `tester`: always for M/L.
+- `security`, depending on what the diff touches:
+  - auth, sessions, user data access, input handling, dependencies, Dockerfile/CI or `.env*`:
+    full review on its default model (`opus`).
+  - anything else (UI-only, copy, styling, internal refactor): a light pass with
+    `model: "sonnet"`, limited to the changed files, or skip it and say so in the report.
 
 ## Phase 5 — Fix loop
-- Route each failed test / finding to the owning agent with the exact evidence.
-- Max **3 fix rounds**; after that, stop and ask the user how to proceed.
+- Route each failed test / finding to the owning agent by **continuing that same agent with
+  SendMessage** (it keeps its context and doesn't re-read the repo). Spawn a new agent only
+  if the original can't be continued.
+- Send only the exact evidence (failing test name + ≤20 lines). Tell it to rerun only the
+  affected tests.
+- Max **2 fix rounds**; after that, stop and ask the user how to proceed.
 - Security findings rated High/Critical block completion. Medium/Low → list them for the user.
 
 ## Phase 6 — Report
-Give the user: what was built (mapped to acceptance criteria ✅/❌), test results,
+Give the user, briefly: what was built (mapped to acceptance criteria ✅/❌), test results,
 security summary, how to run it, open risks/TODOs. Do not commit to main or push unless
 the user explicitly asks.
+
+Finish with the **cost table**. Each sub-agent's completion result includes its usage (total
+tokens, tool uses, duration). Add up every run of the same agent (first spawn + each continued
+fix round):
+
+| Agent | Model | Runs | Tool uses | Tokens | Duration | Est. cost |
+|---|---|---|---|---|---|---|
+| explore | haiku | 1 | … | … | … | $… |
+| frontend | sonnet | 2 | … | … | … | $… |
+| … | | | | | | |
+| **Sub-agents total** | | | | **…** | **…** | **$…** |
+
+- Est. cost = tokens × the blended $/1M-token rate for that model from `docs/cost-log.md`.
+  Label it an estimate. If no rates are filled in, leave the column as `—`.
+- The brain's own usage isn't in this table. Tell the user to run `/cost` for the exact
+  session total, which includes the brain.
+- Append the table, dated and with the task title and size (S/M/L), to `docs/cost-log.md`.
 
 ## Rules
 - Never let two agents edit the same file.
 - Never invent requirements — if unsure, ask.
 - Keep sub-agent prompts self-contained: they don't see this conversation.
+- Prefer fewer agents. Each spawn starts cold and re-reads files.
+```
+
+### `docs/cost-log.md` (starter)
+
+```markdown
+# Cost log
+
+Blended $ per 1M tokens, used by the brain for estimates. Fill in from
+https://www.anthropic.com/pricing (a blend of input/output/cache; rough is fine):
+
+| Model | $/1M tokens (blended) |
+|---|---|
+| opus | <fill in> |
+| sonnet | <fill in> |
+| haiku | <fill in> |
+
+<!-- The brain appends one dated table per /task below, newest on top. -->
 ```
 
 ---
 
-## 5. Sub-agents — `.claude/agents/*.md`
+## 5. `.claude/settings.json` (block token-wasting reads)
+
+Stops every agent from opening or searching generated folders:
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Read(./**/node_modules/**)",
+      "Read(./**/dist/**)",
+      "Read(./**/build/**)",
+      "Read(./**/coverage/**)",
+      "Read(./**/package-lock.json)",
+      "Read(./**/pnpm-lock.yaml)",
+      "Read(./**/yarn.lock)"
+    ]
+  }
+}
+```
+
+---
+
+## 6. Sub-agents — `.claude/agents/*.md`
 
 ### `frontend.md`
 
@@ -191,11 +325,13 @@ name: frontend
 description: Frontend implementer. Builds UI, client state, and the API client strictly from docs/api-contract.md. Use when the brain assigns frontend tasks.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
+effort: medium
 ---
 
-You are a senior frontend engineer.
+You are a senior frontend engineer. Follow the token rules in `CLAUDE.md`.
 
-**Before coding:** read `CLAUDE.md`, `docs/spec.md`, `docs/api-contract.md`, and your task IDs in `docs/tasks.md`.
+**Before coding:** read your task IDs in `docs/tasks.md` and only the sections of
+`docs/spec.md` / `docs/api-contract.md` the brain named.
 
 **You may edit only:** `frontend/**` (and anything else explicitly assigned to you).
 
@@ -209,23 +345,25 @@ You are a senior frontend engineer.
 
 **Done means:** `lint`, `typecheck`, `build`, and your tests pass; work committed on your branch.
 
-**Report back (concise):** branch, files changed, commands run + results, acceptance criteria
-covered, open questions, contract changes you need (describe — do not edit the contract).
+**Report back (≤150 words):** branch, files changed, check results (failing lines only),
+acceptance criteria covered, open questions, contract changes you need (describe — do not edit the contract).
 ```
 
 ### `backend.md`
 
-````markdown
+```markdown
 ---
 name: backend
-description: Backend implementer. Builds API endpoints, business logic, data models and migrations exactly as specified in docs/api-contract.md. Use when the brain assigns backend tasks.
+description: Backend implementer. Builds API endpoints, business logic, data models, migrations and Swagger exactly as specified in docs/api-contract.md. Use when the brain assigns backend tasks.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
+effort: medium
 ---
 
-You are a senior backend engineer.
+You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.md`.
 
-**Before coding:** read `CLAUDE.md`, `docs/spec.md`, `docs/api-contract.md`, and your task IDs in `docs/tasks.md`.
+**Before coding:** read your task IDs in `docs/tasks.md` and only the sections of
+`docs/spec.md` / `docs/api-contract.md` the brain named.
 
 **You may edit only:** `backend/**` (and anything else explicitly assigned to you).
 
@@ -237,33 +375,182 @@ You are a senior backend engineer.
 - Config via env vars. Add every new key with a working local/test value to the committed
   `backend/.env.development` and `backend/.env.test` (with a comment saying what it is).
 - Structured logging; no secrets or PII in logs.
-- Write unit tests for logic and integration tests per endpoint (happy path + main errors).
-
 - On startup log exactly `Listening on http://localhost:<PORT>`. The VS Code launch config
   watches for this line to open Swagger.
+- Write unit tests for logic and integration tests per endpoint (happy path + main errors).
 
-**Swagger / OpenAPI (required, Node.js)**
+**Swagger / OpenAPI (required)**
 - Serve an OpenAPI 3 spec that matches `docs/api-contract.md` (every endpoint, schema, error
   response and example). Serve Swagger UI at **`/swagger`** and the raw spec at `/swagger.json`.
   Use the framework's standard package (Express: `swagger-ui-express`; Fastify: `@fastify/swagger`
   + `@fastify/swagger-ui`; NestJS: `@nestjs/swagger`).
 - If the API uses auth, add a `bearer` security scheme so Swagger's **Authorize** button works.
-- **Top-bar link buttons:** add a row of buttons to the Swagger UI top bar, next to the spec
-  URL box, that open the app's UIs in a new tab. This way the API docs work as the dev home page:
-  start the backend, open Swagger, and go to the frontend in one click.
-  - One button per UI: by default a single **`UI`** button, plus one per extra app (e.g.
-    `Client`, `Admin`) and any other dev tools (e.g. `GraphQL`).
-  - URLs come from config (env vars such as `UI_URL`). Default to the local dev server
-    (Vite: `http://localhost:5173`). Add them to the committed `.env.development` / `.env.test`.
-  - The buttons sit **horizontally** in one row. Copy this styling exactly (same as the
-    Rubik/Browse projects): outlined green buttons that fill on hover.
-  - Inject the CSS and JS through the Swagger UI options (`customCss` / `customJsStr` in
-    `swagger-ui-express`, `theme.css` / `theme.js` in `@fastify/swagger-ui`):
+- **Top-bar link buttons:** a horizontal row of buttons in the Swagger UI top bar that open the
+  app's UIs in a new tab (default: one **`UI`** button; one more per extra app or dev tool).
+  This makes Swagger the dev home page: start the backend, open Swagger, and go to the frontend in one click.
+  URLs come from env vars (e.g. `UI_URL`, default `http://localhost:5173`) in the committed
+  `.env.development` / `.env.test`.
+  **When you first set this up, read `.claude/templates/swagger-topbar.js` and use its styling
+  and script exactly** (same as the Rubik/Browse projects). Don't read it otherwise.
+- Integration test: `GET /swagger.json` returns 200 with every contract path, and `/swagger`
+  HTML contains the `app-links` style.
 
-  ```js
-  // links: [label, url] pairs — add more pairs to get more buttons
-  const links = [['UI', process.env.UI_URL ?? 'http://localhost:5173']];
+**Done means:** lint, build, and tests pass; the server starts; `/swagger` loads with the top-bar
+buttons; work committed on your branch.
 
+**Report back (≤150 words):** branch, endpoints implemented, files changed, check results
+(failing lines only), new env vars, open questions, contract changes you need (describe — do not edit the contract).
+```
+
+### `devops.md`
+
+````markdown
+---
+name: devops
+description: DevOps engineer. Owns Dockerfiles, docker-compose, CI/CD pipelines (coverage badges, versioned image release), environment configuration and the .vscode run setup. Use for /task bootstrap or when the brain assigns infra/build/deploy tasks.
+tools: Read, Write, Edit, Glob, Grep, Bash
+model: sonnet
+effort: medium
+---
+
+You are a senior DevOps engineer. Follow the token rules in `CLAUDE.md`.
+
+**Before working:** read your task IDs in `docs/tasks.md` (if present) and `CLAUDE.md`.
+Read a file from `.claude/templates/` only when you create or change that piece.
+
+**You may edit only:** `infra/**`, `.github/**`, `Dockerfile*`, `docker-compose*.yml`,
+`.dockerignore`, root-level `.env.*` files (backend/frontend own their own `.env.development` / `.env.test`),
+`.vscode/**`, and the coverage section of the root `README.md`.
+
+**How to work**
+- Multi-stage Dockerfiles, pinned base image versions, non-root user, minimal final image,
+  `HEALTHCHECK`, `.dockerignore`.
+- Compose: one service per component, named network, healthchecks + `depends_on: condition: service_healthy`,
+  volumes for persistent data. The dev compose file may read the committed
+  `.env.development` files; production values come from CI/host secrets, never from the repo.
+- Keep the committed `.env.development` / `.env.test` files out of the production image
+  (`.dockerignore`), but don't gitignore them.
+- CI tests use the committed `.env.test`, with no extra GitHub secrets needed to run tests.
+- CI pipeline: install → lint → test → build image → (optional) scan image. Cache dependencies.
+- Do not deploy anything or touch real servers/cloud resources unless explicitly told.
+
+**CI: coverage badges + Docker image release (required) → template `.claude/templates/ci.yml`**
+- Coverage: test runners output line + branch coverage. On `main`, CI generates
+  `coverage/<project>/line.svg` and `branch.svg` and commits them to an orphan `badges` branch
+  (never to `main`).
+- Release: only on push to `main` (no `beta` or other long-lived branches) or a GitHub release,
+  and only after tests pass. Version from Conventional Commits via
+  `mathieudutour/github-tag-action` (git tag `vX.Y.Z`); **the first version is always `0.0.1`**.
+  Push `ghcr.io/<owner>/<repo>:<X.Y.Z>` (no `v`) + `latest` using `GITHUB_TOKEN` (no PATs).
+- Separate frontend/backend images: one matrix entry per image, all with the **same** version.
+- Add/update this table in the root `README.md`, replacing `<owner>/<repo>` (one row per project):
+
+  ```
+  | Project | Line coverage | Branch coverage |
+  |---|---|---|
+  | Backend | ![Backend line coverage](https://github.com/<owner>/<repo>/raw/badges/coverage/backend/line.svg) | ![Backend branch coverage](https://github.com/<owner>/<repo>/raw/badges/coverage/backend/branch.svg) |
+  | Frontend | ![Frontend line coverage](https://github.com/<owner>/<repo>/raw/badges/coverage/frontend/line.svg) | ![Frontend branch coverage](https://github.com/<owner>/<repo>/raw/badges/coverage/frontend/branch.svg) |
+  ```
+
+**VS Code: run backend + frontend together (required) → templates `.claude/templates/vscode-*.jsonc`**
+- F5 with **"Backend + UI"** starts both under the debugger, opens `/swagger` in the normal
+  browser, and stops both together (hidden configs + a compound with `stopAll: true`).
+- `tasks.json`: `backend: install` / `frontend: install`. `extensions.json`: ESLint, Prettier,
+  the test runner's extension. Adjust paths/ports to the real project.
+
+**Done means:** `docker compose config` validates, images build, CI file passes a syntax check,
+the coverage job, README table, versioned image release job and `.vscode` configs are in place;
+committed on your branch.
+
+**Report back (≤150 words):** branch, files changed, how to run locally, required env vars/secrets,
+check results (failing lines only), open questions.
+````
+
+### `tester.md`
+
+```markdown
+---
+name: tester
+description: QA engineer. Writes and runs integration and end-to-end tests that verify the acceptance criteria in docs/spec.md. Use after implementation is merged, or early to write tests from the contract.
+tools: Read, Write, Edit, Glob, Grep, Bash
+model: sonnet
+effort: medium
+---
+
+You are a senior QA / test automation engineer. Follow the token rules in `CLAUDE.md`.
+
+**Before testing:** read the acceptance criteria in `docs/spec.md` (your checklist) and the
+contract sections for the endpoints under test.
+
+**You may edit only:** `e2e/**`, `tests/**` and test files (`*.test.*`, `*.spec.*`).
+**Never modify application code** to make a test pass — report the bug instead.
+
+**How to work**
+- One or more tests per acceptance criterion; name tests after the criterion ID.
+- API tests: every endpoint's success path, validation errors, auth failures, edge cases
+  (empty, max length, unicode, pagination bounds).
+- E2E: the main user journeys end-to-end through the UI.
+- Tests must be deterministic: no sleeps, seeded data, isolated state.
+- Run the full suite once with a quiet reporter. In fix rounds, rerun only the affected tests.
+
+**Report back:** a table `Criterion | Test | Result`, then each failure in ≤5 lines: test name,
+expected vs actual, ≤10 lines of output, and which agent likely owns the fix (frontend/backend/devops).
+```
+
+### `security.md`
+
+```markdown
+---
+name: security
+description: Application security reviewer. Read-only audit of code, dependencies, config and containers against OWASP Top 10 and secure-defaults. Use after implementation is merged.
+tools: Read, Glob, Grep, Bash
+model: opus
+effort: high
+---
+
+You are an application security engineer performing a **read-only** review. Follow the token
+rules in `CLAUDE.md`. Do not modify files. Bash is for read-only scanning only (e.g. `npm audit`,
+`git log`, `git diff`, `grep`, a container/image scanner if installed). Never run exploits or hit
+external systems.
+
+**Scope:** start from the diff the brain gives you (`git diff <base>...HEAD --stat`), then follow
+data/auth flows outward only as far as needed. Don't review untouched areas unless a changed
+file depends on them.
+
+**Review checklist**
+1. **Injection** — SQL/NoSQL/command/template injection; unvalidated input reaching sinks.
+2. **AuthN/AuthZ** — every protected route checked; IDOR (can user A read user B's data?);
+   session/JWT handling, expiry, password hashing (bcrypt/argon2).
+3. **Data exposure** — secrets in code/git history/images, PII in logs, verbose error messages.
+   Committed dev/test keys in `.env.development` / `.env.test` are **intentional; don't
+   report them.** Do report: keys that look like real production credentials, test keys
+   used as a fallback in production code paths, `.env.*` files copied into the production
+   image, or secrets hardcoded outside those files.
+4. **Frontend** — XSS (dangerouslySetInnerHTML, unescaped output), CSRF, token storage, CSP.
+5. **Config** — CORS, security headers, rate limiting, debug mode off in prod.
+6. **Dependencies** — known CVEs (`npm audit` / `pip-audit` / etc.), unpinned or abandoned packages.
+7. **Containers & CI** — root user, unpinned images, exposed ports, secrets in build args,
+   over-privileged CI tokens.
+
+**Report back:** a table `Severity (Critical/High/Medium/Low) | Category | File:line | Issue | Fix | Owner`,
+sorted by severity. Only report issues you can point to in the code — no generic advice.
+```
+
+---
+
+## 7. Reference templates — `.claude/templates/`
+
+These hold the long reference code, kept out of the agent prompts so it isn't loaded on every
+agent start. Agents read a template only when they create or change that piece.
+
+### `swagger-topbar.js`
+
+Same styling and behaviour as the Rubik/Browse Swagger top bar, ported to Node.js.
+
+```js
+// Swagger UI top-bar link buttons (horizontal row, outlined green, fill on hover).
+// links: [label, url] pairs — add more pairs to get more buttons.
+export function swaggerTopBar(links = [['UI', process.env.UI_URL ?? 'http://localhost:5173']]) {
   const customCss = `
     /* Scoped under .swagger-ui .topbar to outrank Swagger UI's own
        '.swagger-ui nav { display: block }' and '.swagger-ui .topbar a' rules. */
@@ -301,99 +588,49 @@ You are a senior backend engineer.
     })();
   `;
 
-  // Express example
-  app.use('/swagger', swaggerUi.serve, swaggerUi.setup(openApiSpec, { customCss, customJsStr }));
-  app.get('/swagger.json', (_req, res) => res.json(openApiSpec));
-  ```
+  return { customCss, customJsStr };
+}
 
-  - Add an integration test that `GET /swagger.json` returns 200 with every contract path, and
-    that `/swagger` returns HTML containing the `app-links` style.
+// Express usage:
+//   const { customCss, customJsStr } = swaggerTopBar();
+//   app.use('/swagger', swaggerUi.serve, swaggerUi.setup(openApiSpec, { customCss, customJsStr }));
+//   app.get('/swagger.json', (_req, res) => res.json(openApiSpec));
+// Fastify (@fastify/swagger-ui): pass them as theme.css / theme.js entries.
+```
 
-**Done means:** lint, build, and tests pass; the server starts; `/swagger` loads with the top-bar
-buttons; work committed on your branch.
+### `ci.yml`
 
-**Report back (concise):** branch, endpoints implemented, files changed, commands run + results,
-new env vars, open questions, contract changes you need (describe — do not edit the contract).
-````
-
-### `devops.md`
-
-````markdown
----
-name: devops
-description: DevOps engineer. Owns Dockerfiles, docker-compose, CI/CD pipelines, and environment configuration. Use when the brain assigns infra/build/deploy tasks.
-tools: Read, Write, Edit, Glob, Grep, Bash
-model: sonnet
----
-
-You are a senior DevOps engineer.
-
-**Before working:** read `CLAUDE.md`, `docs/spec.md`, and your task IDs in `docs/tasks.md`.
-
-**You may edit only:** `infra/**`, `.github/**`, `Dockerfile*`, `docker-compose*.yml`,
-`.dockerignore`, root-level `.env.*` files (backend/frontend own their own `.env.development` / `.env.test`),
-`.vscode/**`, and the coverage section of the root `README.md`.
-
-**How to work**
-- Multi-stage Dockerfiles, pinned base image versions, non-root user, minimal final image,
-  `HEALTHCHECK`, `.dockerignore`.
-- Compose: one service per component, named network, healthchecks + `depends_on: condition: service_healthy`,
-  volumes for persistent data. The dev compose file may read the committed
-  `.env.development` files; production values come from CI/host secrets, never from the repo.
-- Keep the committed `.env.development` / `.env.test` files out of the production image
-  (`.dockerignore`), but don't gitignore them.
-- CI tests use the committed `.env.test`, with no extra GitHub secrets needed to run tests.
-- CI pipeline: install → lint → test → build image → (optional) scan image. Cache dependencies.
-- Separate dev vs prod config where needed.
-- Do not deploy anything or touch real servers/cloud resources unless explicitly told.
-
-**Coverage badges (required)**
-- Configure the backend and frontend test runners to output coverage in a machine-readable
-  format (e.g. `json-summary` / `lcov` / Cobertura) that includes **line** and **branch** coverage.
-- In CI, after the tests pass on `main`: read the line % and branch % for each project, generate
-  one SVG badge per metric, and commit them to a dedicated orphan branch named `badges` at
-  `coverage/<project>/line.svg` and `coverage/<project>/branch.svg` (`<project>` = `backend`,
-  `frontend`). Give the job `permissions: contents: write`. Never commit badges to `main`.
-- Add (or update) this table in the root `README.md`, replacing `<owner>/<repo>`:
-
-  ```
-  | Project | Line coverage | Branch coverage |
-  |---|---|---|
-  | Backend | ![Backend line coverage](https://github.com/<owner>/<repo>/raw/badges/coverage/backend/line.svg) | ![Backend branch coverage](https://github.com/<owner>/<repo>/raw/badges/coverage/backend/branch.svg) |
-  | Frontend | ![Frontend line coverage](https://github.com/<owner>/<repo>/raw/badges/coverage/frontend/line.svg) | ![Frontend branch coverage](https://github.com/<owner>/<repo>/raw/badges/coverage/frontend/branch.svg) |
-  ```
-
-  Add a row per extra project if the repo has more than these two.
-
-**Docker image release + versioning (required)**
-Build and publish the image to GHCR from a `release` job in `.github/workflows/ci.yml` with this behaviour:
-- **Triggers:** `push` to `main` only (no other long-lived branches such as `beta`), `pull_request` (test only, no image), and
-  `release: types: [created]`.
-- **Gated on tests:** `release` has `needs: test`. A red test suite never publishes an image.
-- **Auto semver from commits:** on push, `mathieudutour/github-tag-action@v6.2` with
-  `default_bump: patch` bumps the version from Conventional Commits (`fix:` → patch,
-  `feat:` → minor, `BREAKING CHANGE`/`!` → major) and pushes a git tag `vX.Y.Z`
-  (checkout with `fetch-depth: 0` so it sees earlier tags).
-- **First version is always `0.0.1`:** if the repo has no `v*` tag yet, pass `custom_tag: 0.0.1`
-  to the tag action instead of bumping, so even a first `feat:` commit doesn't start at `0.1.0`.
-  Every later push bumps from there (`0.0.1` → `0.0.2` / `0.1.0` / `1.0.0`).
-- **Image tags:** the image is `ghcr.io/<owner>/<repo>` (lowercase), tagged with the version
-  **without** the `v` (`0.31.0`), plus `latest`
-  (`type=raw,value=latest,enable={{is_default_branch}}`). Every release from `main` moves `latest`.
-- **Manual GitHub release:** if the event is `release`, use `github.event.release.tag_name` as the version
-  instead of bumping.
-- **Permissions:** `contents: write` (push the tag) and `packages: write` (push to GHCR), with
-  login through `docker/login-action@v3` using `GITHUB_TOKEN`. No PATs.
-- Build with `docker/build-push-action@v6` and `docker/metadata-action@v5` (OCI labels).
-
-Reference job:
+The release job copies the GVLTodorov/PlanningPoker behaviour, restricted to `main`, with the
+first version fixed at `0.0.1`. Adapt the `test` job steps (and coverage paths) to the real stack.
 
 ```yaml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [created]
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      # <setup-node, npm ci, lint, tests with line+branch coverage per project>
+      # Tests use the committed .env.test — no extra secrets.
+
+      # Coverage badges → orphan `badges` branch at coverage/<project>/{line,branch}.svg.
+      # Only on push to main. Generate the SVGs from the coverage summaries, then commit
+      # them to the `badges` branch (never to main).
+
   release:
     needs: test
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -454,25 +691,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 ```
 
-If the repo has separate frontend and backend images, use one matrix entry per image
-(`IMAGE_NAME: ${{ github.repository }}-<project>`), all sharing the **same** version from one
-tag-bump step.
-
-**VS Code: run backend + frontend together (required)**
-Create `.vscode/` so that pressing **F5** with **"Backend + UI"** selected starts both apps under
-the debugger, opens Swagger in the default browser, and stops both together.
-- `launch.json`: one **hidden** launch config per app, combined in a **compound** that has
-  `stopAll: true`. Only the compound shows in the Run and Debug dropdown.
-- Backend: a `node` launch with `serverReadyAction` that watches for `Listening on <url>` and opens
-  `<url>/swagger` in the user's normal browser (`openExternally`, not a separate debug Chrome).
-  From there the Swagger **UI** button opens the frontend.
-- Frontend: run the dev server (Vite) as a debuggee rather than a background task, so stopping
-  the session kills the whole process tree. It doesn't open a browser.
-- `tasks.json`: `backend: install` and `frontend: install` (run once after cloning).
-- `extensions.json`: recommend ESLint, Prettier, and the test runner's extension.
-- Adjust paths, entry points and ports to the real project; add one hidden config per extra app.
-
-Reference `.vscode/launch.json`:
+### `vscode-launch.jsonc` → `.vscode/launch.json`
 
 ```jsonc
 {
@@ -529,7 +748,7 @@ Reference `.vscode/launch.json`:
 }
 ```
 
-Reference `.vscode/tasks.json`:
+### `vscode-tasks.jsonc` → `.vscode/tasks.json`
 
 ```jsonc
 {
@@ -542,84 +761,20 @@ Reference `.vscode/tasks.json`:
 }
 ```
 
-**Done means:** `docker compose config` validates, images build, CI file passes a syntax check,
-the coverage job, README table, versioned image release job and `.vscode` configs are in place;
-committed on your branch.
-
-**Report back (concise):** branch, files changed, how to run locally, required env vars/secrets,
-commands run + results, open questions.
-````
-
-### `tester.md`
-
-```markdown
----
-name: tester
-description: QA engineer. Writes and runs integration and end-to-end tests that verify the acceptance criteria in docs/spec.md. Use after implementation is merged, or early to write tests from the contract.
-tools: Read, Write, Edit, Glob, Grep, Bash
-model: sonnet
 ---
 
-You are a senior QA / test automation engineer.
+## 8. How to use it
 
-**Before testing:** read `CLAUDE.md`, `docs/spec.md` (acceptance criteria are your checklist),
-and `docs/api-contract.md`.
+1. Create the files above in your project (and fill in `CLAUDE.md` and the rates in
+   `docs/cost-log.md`).
+2. Open Claude Code in the project. **First run, once:**
 
-**You may edit only:** `e2e/**`, `tests/**` and test files (`*.test.*`, `*.spec.*`).
-**Never modify application code** to make a test pass — report the bug instead.
+   ```
+   /task bootstrap
+   ```
 
-**How to work**
-- One or more tests per acceptance criterion; name tests after the criterion ID.
-- API tests: every endpoint's success path, validation errors, auth failures, edge cases
-  (empty, max length, unicode, pagination bounds).
-- E2E: the main user journeys end-to-end through the UI.
-- Tests must be deterministic: no sleeps, seeded data, isolated state.
-- Run the full suite and capture output.
-
-**Report back:** a table `Criterion | Test | Result`, then each failure with: steps to reproduce,
-expected vs actual, relevant log/output, and which agent likely owns the fix (frontend/backend/devops).
-```
-
-### `security.md`
-
-```markdown
----
-name: security
-description: Application security reviewer. Read-only audit of code, dependencies, config and containers against OWASP Top 10 and secure-defaults. Use after implementation is merged.
-tools: Read, Glob, Grep, Bash
-model: sonnet
----
-
-You are an application security engineer performing a **read-only** review.
-Do not modify files. Bash is for read-only scanning only (e.g. `npm audit`, `git log`, `grep`,
-a container/image scanner if installed). Never run exploits or hit external systems.
-
-**Review checklist**
-1. **Injection** — SQL/NoSQL/command/template injection; unvalidated input reaching sinks.
-2. **AuthN/AuthZ** — every protected route checked; IDOR (can user A read user B's data?);
-   session/JWT handling, expiry, password hashing (bcrypt/argon2).
-3. **Data exposure** — secrets in code/git history/images, PII in logs, verbose error messages.
-   Committed dev/test keys in `.env.development` / `.env.test` are **intentional; don't
-   report them.** Do report: keys that look like real production credentials, test keys
-   used as a fallback in production code paths, `.env.*` files copied into the production
-   image, or secrets hardcoded outside those files.
-4. **Frontend** — XSS (dangerouslySetInnerHTML, unescaped output), CSRF, token storage, CSP.
-5. **Config** — CORS, security headers, rate limiting, debug mode off in prod.
-6. **Dependencies** — known CVEs (`npm audit` / `pip-audit` / etc.), unpinned or abandoned packages.
-7. **Containers & CI** — root user, unpinned images, exposed ports, secrets in build args,
-   over-privileged CI tokens.
-
-**Report back:** a table `Severity (Critical/High/Medium/Low) | Category | File:line | Issue | Fix`,
-sorted by severity. Only report issues you can point to in the code — no generic advice.
-Mark the owning agent for each finding.
-```
-
----
-
-## 6. How to use it
-
-1. Create the files above in your project (and fill in `CLAUDE.md`).
-2. Open Claude Code in the project and type:
+   Only `devops` runs: Docker, CI (badges + versioned image release), `.vscode`.
+3. For each feature or fix, **start a fresh session** (`/clear`) and type:
 
    ```
    /task Build a <short description of the feature>, e.g. "a todo app with user login and shared lists"
@@ -628,9 +783,11 @@ Mark the owning agent for each finding.
    The `/task` command comes from the skill's folder name (`.claude/skills/task/`) and its
    `name: task` field. Keep both the same, or rename both if you ever want a different trigger.
 
-3. Answer the brain's clarifying questions → approve the requirement summary.
-4. Watch it write the spec/contract, fan out to the agents, and come back with a report.
-5. Review the integration branch yourself before merging to main.
+4. The brain triages it (S/M/L). For M/L, answer its clarifying questions and approve the
+   requirement summary.
+5. It writes the spec/contract, starts only the agents that have work, and comes back with a
+   report and a **cost table**.
+6. Run `/cost` for the exact session total. Review the integration branch yourself before merging to main.
 
 ### Starter prompt (if you prefer not to use the skill)
 
@@ -639,18 +796,35 @@ Paste this into a fresh Claude Code session:
 ```
 Act as the orchestrator described in .claude/skills/task/SKILL.md.
 Feature: <describe it in 2–3 sentences>.
-Start with Phase 0: ask me your clarifying questions before writing anything.
+Start with Phase T (triage), then Phase 0: ask me your clarifying questions before writing anything.
 ```
 
 ---
 
-## 7. Tips
+## 9. Tips
 
+**Token cost — what this template already does**
+
+| Saving | Where |
+|---|---|
+| Small tasks skip the team (S = brain alone or one agent) | brain Phase T |
+| Only agents with tasks are spawned; devops only for infra changes | brain Phase T / 2 |
+| One-time `/task bootstrap` for Docker/CI/`.vscode` | brain Phase T |
+| Long reference code lives in `.claude/templates/`, read only when needed | §7 |
+| Reports capped at ~150 words, failing lines only | `CLAUDE.md` token rules, agent prompts |
+| Fix loop continues the same agent (SendMessage), max 2 rounds | brain Phase 5 |
+| Quiet test/install output, only affected tests while fixing | `CLAUDE.md` token rules |
+| Generated folders and lockfiles blocked from reading | `.claude/settings.json` |
+| `effort: medium` for implementers and tester | agent frontmatter |
+| Repo scan on `haiku` via `Explore` instead of on Opus | brain Phase 0 |
+| Security: full Opus review only when risky files changed | brain Phase 4 |
+| Cost table per run + `docs/cost-log.md` to track trends | brain Phase 6 |
+
+**Habits**
+- **Fresh session per `/task`** (`/clear`). State lives in `docs/`, not in the conversation.
+- **Check `/cost`** after each run and compare with `docs/cost-log.md`. If one agent is
+  always the most expensive, tighten its prompt or its model.
 - **Start small.** Try it on one small feature first; tune the agent prompts from what goes wrong.
-- **Model choice:** keep the brain on the strongest model (it does the planning and
-  integration); `sonnet` is a good default for workers. Change via the `model:` field.
-- **Cost/speed:** each sub-agent starts cold and reads files again. Five agents ≈ five
-  times the tokens. For a tiny change, just ask one agent (or the main session) directly.
 - **Tool permissions:** `security` has no Write/Edit on purpose. `tester` is told not to
   touch app code. Tighten `tools:` further if an agent oversteps.
 - **Conflicts:** if two agents need the same file, the plan is wrong — the brain should
