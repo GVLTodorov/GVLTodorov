@@ -260,9 +260,11 @@ Give the user, briefly: what was built (mapped to acceptance criteria ✅/❌), 
 security summary, how to run it, open risks/TODOs. Do not commit to main or push unless
 the user explicitly asks.
 
-Finish with the **cost table**. Each sub-agent's completion result includes its usage (total
-tokens, tool uses, duration). Add up every run of the same agent (first spawn + each continued
-fix round):
+Finish with **two cost tables**. Each sub-agent's completion result includes its usage (total
+tokens, tool uses, duration).
+
+**1. Per sub-agent**: one row per agent. Add up every run of the same agent (first spawn +
+each continued fix round):
 
 | Agent | Model | Runs | Tool uses | Tokens | Duration | Est. cost |
 |---|---|---|---|---|---|---|
@@ -271,11 +273,22 @@ fix round):
 | … | | | | | | |
 | **Sub-agents total** | | | | **…** | **…** | **$…** |
 
+**2. Per model**: one row per model used, summing the rows above (e.g. tester and security
+on `sonnet` share one row). Use it to see where the money goes:
+
+| Model | Agents | Runs | Tokens | Share of tokens | Est. cost |
+|---|---|---|---|---|---|
+| opus | security | 1 | … | …% | $… |
+| sonnet | frontend, backend, tester | 5 | … | …% | $… |
+| haiku | explore | 1 | … | …% | $… |
+| **Total** | | **…** | **…** | 100% | **$…** |
+
 - Est. cost = tokens × the blended $/1M-token rate for that model from `docs/cost-log.md`.
   Label it an estimate. If no rates are filled in, leave the column as `—`.
-- The brain's own usage isn't in this table. Tell the user to run `/cost` for the exact
+- The brain's own usage isn't in these tables. Tell the user to run `/cost` for the exact
   session total, which includes the brain.
-- Append the table, dated and with the task title and size (S/M/L), to `docs/cost-log.md`.
+- Append **both** tables, under one dated heading with the task title and size (S/M/L), to
+  `docs/cost-log.md`.
 
 ## Rules
 - Never let two agents edit the same file.
@@ -298,7 +311,8 @@ https://www.anthropic.com/pricing (a blend of input/output/cache; rough is fine)
 | sonnet | <fill in> |
 | haiku | <fill in> |
 
-<!-- The brain appends one dated table per /task below, newest on top. -->
+<!-- The brain appends one dated entry per /task below, newest on top:
+     a per-sub-agent table and a per-model table. -->
 ```
 
 ---
