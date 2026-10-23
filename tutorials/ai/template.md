@@ -84,6 +84,11 @@ and hands work to **five specialist sub-agents** that work in parallel:
 ```
 your-project/
 ├── CLAUDE.md                        # project facts + token rules every agent reads
+├── Dockerfile                       # ONE image: builds frontend + backend, backend serves the UI
+├── frontend/                        # ┐
+├── backend/                         # │ created empty (with .gitkeep) by /task bootstrap,
+├── infra/                           # │ then filled by the owning agents
+├── e2e/                             # ┘
 ├── .vscode/                         # launch.json + tasks.json by devops: F5 runs backend + UI together
 ├── docs/
 │   ├── spec.md                      # written by brain after clarification
@@ -176,8 +181,11 @@ model, so delegate reading and doing, and keep your own context small.
 ## Phase T — Triage (always first)
 Classify the request and say which size you picked and why, in one line:
 - **bootstrap** (`/task bootstrap`, or `.github/workflows/ci.yml` / `.vscode/launch.json` are
-  missing): a one-time setup run. Spawn only `devops` to create Dockerfile, compose, CI with
-  coverage badges + versioned image release, and `.vscode`. Then skip to Phase 6.
+  missing): a one-time setup run. First create the empty project folders yourself
+  (`frontend/`, `backend/`, `infra/`, `e2e/`, `docs/`), each with a `.gitkeep` so git keeps them;
+  skip any that already exist and never overwrite files. Then spawn only `devops` to create the
+  single-image Dockerfile, compose, CI with coverage badges + versioned image release, and
+  `.vscode`. Then skip to Phase 6.
 - **S (small)**: a bug fix or small change in ≤ ~3 files in one area. **No team.** Skip
   the spec/contract docs. Do it yourself, or spawn the ONE owning agent with a short prompt. Run
   the affected tests, then go to Phase 6.
@@ -386,6 +394,10 @@ You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.m
 - Structured logging; no secrets or PII in logs.
 - On startup log exactly `Listening on http://localhost:<PORT>`. The VS Code launch config
   watches for this line to open Swagger.
+- The app ships as **one Docker image**: in production the backend also serves the built
+  frontend (static files from a configurable dir, e.g. `STATIC_DIR`, with SPA fallback to
+  `index.html` for non-API routes). Keep API routes under a prefix (e.g. `/api`) so they never
+  clash with UI routes.
 - Write unit tests for logic and integration tests per endpoint (happy path + main errors).
 
 **Swagger / OpenAPI (required)**
@@ -416,7 +428,7 @@ buttons; work committed on your branch.
 ````markdown
 ---
 name: devops
-description: DevOps engineer. Owns Dockerfiles, docker-compose, CI/CD pipelines (coverage badges, versioned image release), environment configuration and the .vscode run setup. Use for /task bootstrap or when the brain assigns infra/build/deploy tasks.
+description: DevOps engineer. Owns the single-image Dockerfile, docker-compose, CI/CD pipelines (coverage badges, versioned image release), environment configuration and the .vscode run setup. Use for /task bootstrap or when the brain assigns infra/build/deploy tasks.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
 effort: medium
@@ -432,9 +444,12 @@ Read a file from `.claude/templates/` only when you create or change that piece.
 `.vscode/**`, and the coverage section of the root `README.md`.
 
 **How to work**
-- Multi-stage Dockerfiles, pinned base image versions, non-root user, minimal final image,
-  `HEALTHCHECK`, `.dockerignore`.
-- Compose: one service per component, named network, healthchecks + `depends_on: condition: service_healthy`,
+- **Single Docker image** for the whole app: one root `Dockerfile`, multi-stage — a stage
+  builds the frontend, a stage builds the backend, and the final stage contains the backend
+  runtime plus the frontend's static build (served by the backend). No separate frontend image.
+- Pinned base image versions, non-root user, minimal final image, `HEALTHCHECK`, `.dockerignore`.
+- Compose: one service for the app image, plus separate services only for third-party
+  dependencies (database, cache…); named network, healthchecks + `depends_on: condition: service_healthy`,
   volumes for persistent data. The dev compose file may read the committed
   `.env.development` files; production values come from CI/host secrets, never from the repo.
 - Keep the committed `.env.development` / `.env.test` files out of the production image
@@ -451,7 +466,8 @@ Read a file from `.claude/templates/` only when you create or change that piece.
   and only after tests pass. Version from Conventional Commits via
   `mathieudutour/github-tag-action` (git tag `vX.Y.Z`); **the first version is always `0.0.1`**.
   Push `ghcr.io/<owner>/<repo>:<X.Y.Z>` (no `v`) + `latest` using `GITHUB_TOKEN` (no PATs).
-- Separate frontend/backend images: one matrix entry per image, all with the **same** version.
+- One image only (`ghcr.io/<owner>/<repo>`), built from the root `Dockerfile`; no matrix of
+  per-component images.
 - Add/update this table in the root `README.md`, replacing `<owner>/<repo>` (one row per project):
 
   ```
@@ -467,7 +483,7 @@ Read a file from `.claude/templates/` only when you create or change that piece.
 - `tasks.json`: `backend: install` / `frontend: install`. `extensions.json`: ESLint, Prettier,
   the test runner's extension. Adjust paths/ports to the real project.
 
-**Done means:** `docker compose config` validates, images build, CI file passes a syntax check,
+**Done means:** `docker compose config` validates, the single app image builds and serves both `/swagger` and the UI, CI file passes a syntax check,
 the coverage job, README table, versioned image release job and `.vscode` configs are in place;
 committed on your branch.
 
@@ -784,7 +800,9 @@ jobs:
    /task bootstrap
    ```
 
-   Only `devops` runs: Docker, CI (badges + versioned image release), `.vscode`.
+   The brain creates the empty project folders (`frontend/`, `backend/`, `infra/`, `e2e/`,
+   `docs/`), then only `devops` runs: the single-image Dockerfile, compose, CI (badges +
+   versioned image release), `.vscode`.
 3. For each feature or fix, **start a fresh session** (`/clear`) and type:
 
    ```
