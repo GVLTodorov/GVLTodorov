@@ -204,6 +204,8 @@ Never spawn `devops` for a feature unless it changes Docker, compose, CI, env fi
 Write these files, then show the user a short summary:
 - `docs/spec.md` — user stories with **acceptance criteria** (Given/When/Then, IDs like `AC-3`),
   out-of-scope list. Use one heading per area so agents can read only their section.
+  If there is a UI, always include a responsive criterion: usable at 360px / 768px / 1280px
+  with no horizontal page scroll.
 - `docs/api-contract.md` — every endpoint: method, path, auth, request schema, response
   schema, error codes, example payloads. Include shared types/enums.
 - `docs/tasks.md` — task table: `ID | Agent | Task | Files owned | Depends on | Status`.
@@ -340,13 +342,20 @@ You are a senior frontend engineer. Follow the token rules in `CLAUDE.md`.
   example payloads (e.g. MSW or a fixtures file) — never wait on the backend.
 - Generate/define API types from the contract; one typed API client module, no ad-hoc fetches.
 - Handle loading, empty, and error states for every screen. Accessible markup (labels, roles, keyboard).
+- **Responsive, mobile-first:** every screen works on mobile, tablet and desktop. Base styles
+  target ~360px, then `min-width` breakpoints (e.g. 640 / 1024px). Fluid layouts (flex/grid,
+  `minmax`, %), no fixed widths, no horizontal page scroll at 360px. Viewport meta tag present.
+  Touch targets ≥44×44px; nothing hover-only. Navigation collapses to a menu; wide tables
+  become cards or scroll inside their own container; media scales (`max-width: 100%`).
 - Follow existing components/styles; don't add a UI library without being told.
 - Write unit/component tests for logic and key components.
 
-**Done means:** `lint`, `typecheck`, `build`, and your tests pass; work committed on your branch.
+**Done means:** `lint`, `typecheck`, `build`, and your tests pass; every new/changed screen
+checked at 360px, 768px and 1280px widths; work committed on your branch.
 
 **Report back (≤150 words):** branch, files changed, check results (failing lines only),
-acceptance criteria covered, open questions, contract changes you need (describe — do not edit the contract).
+responsive check (widths verified, any known issues), acceptance criteria covered, open questions,
+contract changes you need (describe — do not edit the contract).
 ```
 
 ### `backend.md`
@@ -489,7 +498,9 @@ contract sections for the endpoints under test.
 - One or more tests per acceptance criterion; name tests after the criterion ID.
 - API tests: every endpoint's success path, validation errors, auth failures, edge cases
   (empty, max length, unicode, pagination bounds).
-- E2E: the main user journeys end-to-end through the UI.
+- E2E: the main user journeys end-to-end through the UI, on a desktop viewport and a mobile
+  viewport (e.g. Playwright `devices['iPhone 13']`). On mobile, also assert there is no
+  horizontal scroll (`scrollWidth <= clientWidth`).
 - Tests must be deterministic: no sleeps, seeded data, isolated state.
 - Run the full suite once with a quiet reporter. In fix rounds, rerun only the affected tests.
 
