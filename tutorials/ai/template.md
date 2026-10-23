@@ -86,7 +86,7 @@ your-project/
 ├── CLAUDE.md                        # project facts + token rules every agent reads
 ├── Dockerfile                       # ONE image: builds frontend + backend, backend serves the UI
 ├── frontend/                        # ┐
-├── backend/                         # │ created empty (with .gitkeep) by /task bootstrap,
+├── backend/                         # │ created empty (with .gitkeep) by /task init,
 ├── e2e/                             # ┘ then filled by the owning agents
 ├── .github/
 │   ├── workflows/                   # CI by devops
@@ -182,7 +182,7 @@ model, so delegate reading and doing, and keep your own context small.
 
 ## Phase T — Triage (always first)
 Classify the request and say which size you picked and why, in one line:
-- **bootstrap** (`/task bootstrap`, or `.github/workflows/ci.yml` / `.vscode/launch.json` are
+- **init** (`/task init`, or `.github/workflows/ci.yml` / `.vscode/launch.json` are
   missing): a one-time setup run. First create the empty project folders yourself
   (`frontend/`, `backend/`, `e2e/`, `docs/`, `.github/scripts/`), each with a `.gitkeep` so git
   keeps them. Never create a root `infra/` folder;
@@ -445,7 +445,7 @@ buttons; work committed on your branch.
 ````markdown
 ---
 name: devops
-description: DevOps engineer. Owns the single-image Dockerfile, docker-compose, CI/CD pipelines (coverage badges, versioned image release), environment configuration and the .vscode run setup. Use for /task bootstrap or when the brain assigns infra/build/deploy tasks.
+description: DevOps engineer. Owns the single-image Dockerfile, docker-compose, CI/CD pipelines (coverage badges, versioned image release), environment configuration and the .vscode run setup. Use for /task init or when the brain assigns infra/build/deploy tasks.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
 effort: medium
@@ -819,7 +819,7 @@ jobs:
 2. Open Claude Code in the project. **First run, once:**
 
    ```
-   /task bootstrap
+   /task init
    ```
 
    The brain creates the empty project folders (`frontend/`, `backend/`, `e2e/`, `docs/`,
@@ -860,7 +860,7 @@ Start with Phase T (triage), then Phase 0: ask me your clarifying questions befo
 |---|---|
 | Small tasks skip the team (S = brain alone or one agent) | brain Phase T |
 | Only agents with tasks are spawned; devops only for infra changes | brain Phase T / 2 |
-| One-time `/task bootstrap` for Docker/CI/`.vscode` | brain Phase T |
+| One-time `/task init` for Docker/CI/`.vscode` | brain Phase T |
 | Long reference code lives in `.claude/templates/`, read only when needed | §7 |
 | Reports capped at ~150 words, failing lines only | `CLAUDE.md` token rules, agent prompts |
 | Fix loop continues the same agent (SendMessage), max 2 rounds | brain Phase 5 |
