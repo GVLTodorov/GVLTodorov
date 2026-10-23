@@ -87,8 +87,10 @@ your-project/
 ├── Dockerfile                       # ONE image: builds frontend + backend, backend serves the UI
 ├── frontend/                        # ┐
 ├── backend/                         # │ created empty (with .gitkeep) by /task bootstrap,
-├── infra/                           # │ then filled by the owning agents
-├── e2e/                             # ┘
+├── e2e/                             # ┘ then filled by the owning agents
+├── .github/
+│   ├── workflows/                   # CI by devops
+│   └── scripts/                     # ALL helper scripts/tools by devops (no root infra/ folder)
 ├── .vscode/                         # launch.json + tasks.json by devops: F5 runs backend + UI together
 ├── docs/
 │   ├── spec.md                      # written by brain after clarification
@@ -126,7 +128,7 @@ Every agent reads this automatically, so keep it short; it is paid for on every 
 ## Stack
 - Frontend: <e.g. React 19 + Vite + TypeScript + Tailwind>   → lives in `frontend/`
 - Backend:  <e.g. Node 22 + Fastify + PostgreSQL + Prisma>   → lives in `backend/`
-- Infra:    <e.g. Docker Compose, GitHub Actions, Traefik>   → lives in `infra/`, `.github/`
+- Infra:    <e.g. Docker Compose, GitHub Actions, Traefik>   → root `Dockerfile`/compose, `.github/` (scripts in `.github/scripts/`)
 - Tests:    <e.g. Vitest, Playwright, Supertest>             → `*/tests/`, `e2e/`
 
 ## Commands
@@ -182,7 +184,8 @@ model, so delegate reading and doing, and keep your own context small.
 Classify the request and say which size you picked and why, in one line:
 - **bootstrap** (`/task bootstrap`, or `.github/workflows/ci.yml` / `.vscode/launch.json` are
   missing): a one-time setup run. First create the empty project folders yourself
-  (`frontend/`, `backend/`, `infra/`, `e2e/`, `docs/`), each with a `.gitkeep` so git keeps them;
+  (`frontend/`, `backend/`, `e2e/`, `docs/`, `.github/scripts/`), each with a `.gitkeep` so git
+  keeps them. Never create a root `infra/` folder;
   skip any that already exist and never overwrite files. Then spawn only `devops` to create the
   single-image Dockerfile, compose, CI with coverage badges + versioned image release, and
   `.vscode`. Then skip to Phase 6.
@@ -453,7 +456,12 @@ You are a senior DevOps engineer. Follow the token rules in `CLAUDE.md`.
 **Before working:** read your task IDs in `docs/tasks.md` (if present) and `CLAUDE.md`.
 Read a file from `.claude/templates/` only when you create or change that piece.
 
-**You may edit only:** `infra/**`, `.github/**`, `Dockerfile*`, `docker-compose*.yml`,
+**Helper scripts and tools go in `.github/`, never in a root `infra/` folder.** Workflows in
+`.github/workflows/`, every helper script (build, release, badge generation, DB backup, setup…)
+in `.github/scripts/`, called from CI by that path. Don't create `infra/`, `scripts/` or `tools/`
+at the repo root.
+
+**You may edit only:** `.github/**`, `Dockerfile*`, `docker-compose*.yml`,
 `.dockerignore`, root-level `.env.*` files (backend/frontend own their own `.env.development` / `.env.test`),
 `.vscode/**`, and the coverage section of the root `README.md`.
 
@@ -814,8 +822,8 @@ jobs:
    /task bootstrap
    ```
 
-   The brain creates the empty project folders (`frontend/`, `backend/`, `infra/`, `e2e/`,
-   `docs/`), then only `devops` runs: the single-image Dockerfile, compose, CI (badges +
+   The brain creates the empty project folders (`frontend/`, `backend/`, `e2e/`, `docs/`,
+   `.github/scripts/`), then only `devops` runs: the single-image Dockerfile, compose, CI (badges +
    versioned image release), `.vscode`.
 3. For each feature or fix, **start a fresh session** (`/clear`) and type:
 
