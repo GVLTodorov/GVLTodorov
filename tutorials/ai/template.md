@@ -96,8 +96,7 @@ your-project/
 ├── docs/
 │   ├── spec.md                      # written by brain after clarification
 │   ├── api-contract.md              # written by brain, the frontend↔backend contract
-│   ├── tasks.md                     # brain's task board (who does what, status)
-│   └── cost-log.md                  # brain appends a cost table after every /task
+│   └── tasks.md                     # brain's task board (who does what, status)
 └── .claude/
     ├── settings.json                # blocks reading generated folders, pre-allows slow build/test commands
     ├── skills/
@@ -295,29 +294,25 @@ tokens, tool uses, duration).
 **1. Per sub-agent**: one row per agent. Add up every run of the same agent (first spawn +
 each continued fix round):
 
-| Agent | Model | Runs | Tool uses | Tokens | Duration | Est. cost |
-|---|---|---|---|---|---|---|
-| explore | haiku | 1 | … | … | … | $… |
-| frontend | sonnet | 2 | … | … | … | $… |
-| … | | | | | | |
-| **Sub-agents total** | | | | **…** | **…** | **$…** |
+| Agent | Model | Runs | Tool uses | Tokens | Duration |
+|---|---|---|---|---|---|
+| explore | haiku | 1 | … | … | … |
+| frontend | sonnet | 2 | … | … | … |
+| … | | | | | |
+| **Sub-agents total** | | | | **…** | **…** |
 
 **2. Per model**: one row per model used, summing the rows above (e.g. tester and security
-on `sonnet` share one row). Use it to see where the money goes:
+on `sonnet` share one row). Use it to see where the tokens go:
 
-| Model | Agents | Runs | Tokens | Share of tokens | Est. cost |
-|---|---|---|---|---|---|
-| opus | security | 1 | … | …% | $… |
-| sonnet | frontend, backend, tester | 5 | … | …% | $… |
-| haiku | explore | 1 | … | …% | $… |
-| **Total** | | **…** | **…** | 100% | **$…** |
+| Model | Agents | Runs | Tokens | Share of tokens |
+|---|---|---|---|---|
+| opus | security | 1 | … | …% |
+| sonnet | frontend, backend, tester | 5 | … | …% |
+| haiku | explore | 1 | … | …% |
+| **Total** | | **…** | **…** | 100% |
 
-- Est. cost = tokens × the blended $/1M-token rate for that model from `docs/cost-log.md`.
-  Label it an estimate. If no rates are filled in, leave the column as `—`.
 - The brain's own usage isn't in these tables. Tell the user to run `/cost` for the exact
   session total, which includes the brain.
-- Append **both** tables, under one dated heading with the task title and size (S/M/L), to
-  `docs/cost-log.md`.
 
 ## Rules
 - Never let two agents edit the same file.
@@ -328,24 +323,6 @@ on `sonnet` share one row). Use it to see where the money goes:
   Long-running commands they need must be allowed in `.claude/settings.json`.
 - Agents running in parallel must not share mutable test state (same test DB, same port).
   If two agents' tests run at once, failures like deadlocks or 401s are noise; rerun before routing.
-```
-
-### `docs/cost-log.md` (starter)
-
-```markdown
-# Cost log
-
-Blended $ per 1M tokens, used by the brain for estimates. Fill in from
-https://www.anthropic.com/pricing (a blend of input/output/cache; rough is fine):
-
-| Model | $/1M tokens (blended) |
-|---|---|
-| opus | <fill in> |
-| sonnet | <fill in> |
-| haiku | <fill in> |
-
-<!-- The brain appends one dated entry per /task below, newest on top:
-     a per-sub-agent table and a per-model table. -->
 ```
 
 ---
@@ -995,8 +972,7 @@ jobs:
 
 ## 8. How to use it
 
-1. Create the files above in your project (and fill in `CLAUDE.md` and the rates in
-   `docs/cost-log.md`).
+1. Create the files above in your project (and fill in `CLAUDE.md`).
 2. Open Claude Code in the project. **First run, once:**
 
    ```
@@ -1050,7 +1026,7 @@ Start with Phase T (triage), then Phase 0: ask me your clarifying questions befo
 | `effort: medium` for implementers and tester | agent frontmatter |
 | Repo scan on `haiku` via `Explore` instead of on Opus | brain Phase 0 |
 | Security: full Opus review only when risky files changed | brain Phase 4 |
-| Cost table per run + `docs/cost-log.md` to track trends | brain Phase 6 |
+| Cost table per run | brain Phase 6 |
 
 **Build & test speed: what this template does (and why)**
 
@@ -1076,7 +1052,7 @@ build discovered late, and agents waiting on things they can't fix.
 
 **Habits**
 - **Fresh session per `/task`** (`/clear`). State lives in `docs/`, not in the conversation.
-- **Check `/cost`** after each run and compare with `docs/cost-log.md`. If one agent is
+- **Check `/cost`** after each run and compare with the brain's cost tables. If one agent is
   always the most expensive, tighten its prompt or its model.
 - **Start small.** Try it on one small feature first; tune the agent prompts from what goes wrong.
 - **Tool permissions:** `security` has no Write/Edit on purpose. `tester` is told not to
