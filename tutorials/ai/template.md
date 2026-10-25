@@ -5,7 +5,7 @@ and hands work to **five specialist sub-agents** that work in parallel:
 
 | Agent | Responsibility | Model | Effort | Runs in parallel with |
 |---|---|---|---|---|
-| **brain** (main session) | Triages the task, asks clarifying questions, writes the spec + API contract, splits work, merges results, reports cost | `opus` | high | — |
+| **brain** (main session) | Triages the task, asks clarifying questions, writes the spec + API contract, splits work, merges results | `opus` for clarify + spec, then `sonnet` | high | — |
 | `frontend` | UI, client state, API client code | `sonnet` | medium | backend, devops |
 | `backend` | API, business logic, data layer, migrations, Swagger | `sonnet` | medium | frontend, devops |
 | `devops` | Dockerfile, compose, CI/CD, versioning, coverage badges, `.vscode` | `sonnet` | medium | frontend, backend |
@@ -30,9 +30,12 @@ and hands work to **five specialist sub-agents** that work in parallel:
 - Brain: the `model: opus` line in `.claude/skills/task/SKILL.md` switches the session to Opus
   while `/task` runs. You can also just run `/model opus` before starting.
 - The brain may override a model for a single run (e.g. a light security pass on `sonnet`), as described in its Phase 4.
+- **After the spec is approved, the hard thinking is done.** Merging, running checks and routing
+  fixes don't need Opus, yet the brain is woken once per agent report and every wake re-reads the
+  whole session. Run `/compact`, then `/model sonnet`, after Phase 1. The brain reminds you.
 
 **When to change it:**
-- Tight budget → put `security` on `sonnet` too; keep the brain on `opus`.
+- Tight budget → put `security` on `sonnet` too; keep the brain on `opus` for Phase 0–1 only.
 - Hard or unfamiliar domain (complex algorithms, tricky concurrency) → raise `backend` to `opus`.
 - `haiku` only for very mechanical work: the brain's repo scan in Phase 0, or agents you might add
   later (docs, formatting). Don't use it for the five above.
@@ -47,25 +50,25 @@ and hands work to **five specialist sub-agents** that work in parallel:
                  │  T. triage: S / M / L        │    questions and spawn sub-agents
                  └──────────────┬───────────────┘
               S (small) ────────┤──────── M / L
-     brain does it alone        │ clarify → docs/spec.md + api-contract.md + api-types.ts
-     or with ONE agent          │
-                    L only:     ▼
-              skeleton: 1 backend + 1 frontend (plumbing only,   ← Phase 1b: ~10 min,
-              empty module stubs) → brain merges                    blocks everything else
+     brain does it alone        │ clarify → docs/spec.md + api-contract.md + api-types.ts (Opus)
+     or with ONE agent          │ then /compact + /model sonnet
+                                ▼
+       no starter repo yet:  skeleton, 1 backend + 1 frontend     ← Phase 1b: skipped when the
+       (thin plumbing + docs/core.md) → brain merges                repo starts from a starter
             ┌───────────────────┼───────────────────┐
             ▼                   ▼                   ▼
-   frontend × N modules  backend × N modules       devops      ← Phase 2: parallel, one agent
-     (worktree each)      (worktree each)        (worktree)      per module-sized task, each starts
-            └───────────────────┼───────────────────┘            as soon as ITS dependency merges
+     frontend × 1–2       backend × 1–2       devops (only for     ← Phase 2: parallel, each agent
+     (worktree each)      (worktree each)     infra changes)         owns several modules
+            └───────────────────┼───────────────────┘
                                 ▼
-                     brain merges branches
+     brain merges in waves, runs the CI commands 3× + image smoke once   ← Phase 3
                                 │
                  ┌──────────────┴──────────────┐
                  ▼                             ▼
               tester                       security            ← Phase 4: parallel
                  └──────────────┬──────────────┘                 (security only if risky files changed)
                                 ▼
-   brain: fix loop → merge into local main + delete worktrees/branches → report + cost table
+   brain: fix loop → merge into local main + delete worktrees/branches → report
 ```
 
 **Three rules make parallelism work:**
@@ -76,10 +79,11 @@ and hands work to **five specialist sub-agents** that work in parallel:
    against each other's code.
 2. **Isolated worktrees + file ownership.** Each implementer works in its own git worktree
    and only touches its own folders. The brain is the only one who merges.
-3. **Thin skeleton, then small module tasks.** Wall-clock time is set by the longest chain,
-   not by the number of agents. A short plumbing-only skeleton creates one empty stub per
-   module, then each module-sized task gets its own agent. One huge "foundation" or "finance"
-   task makes everyone else wait.
+3. **Few agents, each with real work.** Wall-clock time is set by the longest chain, but
+   **cost is set by the number of agent starts**: every spawn pays ~30–50k tokens just to read
+   `CLAUDE.md`, its prompt, the docs and the core code before writing a line. Start from a starter
+   repo (no skeleton step) and run at most **2 backend + 2 frontend** agents, each owning
+   several modules. Fifteen small agents cost far more than four larger ones and aren't much faster.
 
 > **Why the brain is the main session, not a sub-agent:** in Claude Code, sub-agents can't
 > spawn other sub-agents and can't interactively ask you questions. So the brain must be
@@ -105,6 +109,7 @@ your-project/
 │   ├── spec.md                      # written by brain after clarification
 │   ├── api-contract.md              # written by brain, the frontend↔backend contract (+ env table)
 │   ├── api-types.ts                 # written by brain: every contract type/enum as TypeScript
+│   ├── core.md                      # ≤60-line cheat-sheet of core helpers (starter/skeleton writes it)
 │   └── tasks.md                     # brain's task board (who does what, size, status)
 └── .claude/
     ├── settings.json                # blocks reading generated folders, pre-allows slow build/test commands
@@ -124,6 +129,17 @@ your-project/
 ```
 
 Copy each block below into the matching file. Replace anything in `<angle brackets>`.
+
+> **Cheapest and fastest: keep a starter repo.** Build the plumbing once and reuse it for every
+> project. That means `/task init` plus the Phase 1b skeleton:
+> - an app that boots, with config, DB + first migration, auth middleware, error shape, test
+>   helpers, Swagger and static serving;
+> - a frontend shell with routing, the API client, i18n, the UI kit and test mocks;
+> - the Dockerfile, CI and `.vscode`, with `docs/core.md` filled in.
+>
+> Verify it once (`docker build .`, CI green, F5 works). Then every `/task` only pays for
+> features. In a measured L run, init + skeleton + image fixes were about a quarter of all
+> tokens and the whole first hour.
 
 ---
 
@@ -176,6 +192,7 @@ Every agent reads this automatically, so keep it short; it is paid for on every 
 - Read only what your task needs: your task IDs' sections of `docs/spec.md` and
   `docs/api-contract.md`, and files in your folders. Use Grep/Glob to find code, then read the
   relevant part, not whole large files.
+- Learn the shared helpers from `docs/core.md`; open core files only for something it doesn't list.
 - Never read generated folders: `node_modules`, `dist`, `build`, `coverage`, lockfiles.
 - Quiet commands: tests with `--reporter=dot` (or `--silent`), installs with `--silent`,
   and pipe long output through `| tail -n 50`. **Exception:** never `--silent` inside a
@@ -183,6 +200,9 @@ Every agent reads this automatically, so keep it short; it is paid for on every 
 - Slow commands (image builds, cold installs, e2e suites) can take 10+ minutes: run them in the
   background with a long timeout instead of letting them time out and retrying.
 - While fixing, run only the affected test files. Run the full suite once, at the end.
+- Verification happens once, in one place: agents run `test:ci` once. The brain repeats it 3×
+  and builds the image at integration, and the tester checks responsive layouts. Agents don't
+  build Docker images or start browsers.
 - Read files in `.claude/templates/` only when your task creates or changes that piece.
 - Reports: **max ~150 words or one table.** No full logs: quote only the failing lines
   (max 20), and never paste whole files or diffs.
@@ -196,17 +216,23 @@ Every agent reads this automatically, so keep it short; it is paid for on every 
 ---
 name: task
 model: opus
-description: Orchestrator for a feature. Triages the task, clarifies requirements with the user, writes the spec and API contract, then dispatches frontend/backend/devops/tester/security sub-agents in parallel, integrates their work and reports the cost. Use on /task or when the user wants to start a new feature with the agent team.
+description: Orchestrator for a feature. Triages the task, clarifies requirements with the user, writes the spec and API contract, then dispatches frontend/backend/devops/tester/security sub-agents in parallel and integrates their work. Use on /task or when the user wants to start a new feature with the agent team.
 ---
 
 You are the **lead engineer and orchestrator**. For M/L tasks you do not write feature code
 yourself; you clarify, plan, delegate, integrate, and verify. You run on the most expensive
 model, so delegate reading and doing, and keep your own context small.
 
+**Cost model (read once):** you are woken once per agent report, and every wake re-reads this
+whole session; each agent start costs ~30–50k tokens of orientation. So: few agents, short
+turns, merges in waves. After the user approves the spec (end of Phase 1), tell them once:
+"Run `/compact`, then `/model sonnet`. The rest is merging and routing."
+
 ## Phase T — Triage (always first)
 Classify the request and say which size you picked and why, in one line:
 - **init** (`/task init`, or `.github/workflows/ci.yml` / `.vscode/launch.json` are
-  missing): a one-time setup run. First create the empty project folders yourself
+  missing): a one-time setup run. Skip it entirely when the repo came from a starter repo
+  (Dockerfile, CI, `.vscode` and `docs/core.md` exist). First create the empty project folders yourself
   (`frontend/`, `backend/`, `e2e/`, `docs/`, `.github/scripts/`), each with a `.gitkeep` so git
   keeps them. Never create a root `infra/` folder;
   skip any that already exist and never overwrite files. Also create (if missing) a root
@@ -233,9 +259,11 @@ container for all agents before Phase 1b (`docker compose … up -d --wait <db> 
 tests use isolated schemas on it and never stop it.
 
 ## Phase 0 — Clarify (M/L)
-1. Read `CLAUDE.md`. To learn what exists, spawn the built-in `Explore` agent with
-   `model: "haiku"` and ask for a ≤150-word summary of the relevant code. Don't skim the
-   repo yourself.
+1. Read `CLAUDE.md` and `docs/core.md` (if present). If the repo has feature code, spawn the
+   built-in `Explore` agent with `model: "haiku"` for a ≤150-word summary of the relevant code.
+   Don't skim the repo yourself.
+   **Scope first:** for an L request, recommend an MVP slice (the 2–3 flows that prove the product)
+   as the default option; the rest becomes later `/task` runs. Scope is the biggest cost lever.
 2. Ask the user **at most 4 focused questions** in one AskUserQuestion call (the tool's
    limit), covering only what you can't infer; bundle related open points into one question
    with "Use defaults (Recommended)" as the first option:
@@ -253,9 +281,11 @@ Write these files, then show the user a short summary:
   out-of-scope list. Use one heading per area so agents can read only their section.
   If there is a UI, always include a responsive criterion: usable at 360px / 768px / 1280px
   with no horizontal page scroll.
-- `docs/api-contract.md` — every endpoint: method, path, auth, request schema, response
-  schema, error codes, example payloads. Include shared types/enums. End it with an
-  **env table** `NAME | type | example | required in prod`: every env var the app reads, with its
+- `docs/api-contract.md` — **terse:** one table per area: method, path, roles, request/response
+  type names from `api-types.ts`, error codes. Add only the rules types can't express (state
+  transitions, permissions, idempotency). Don't repeat type fields in prose; give an example only
+  where a payload is tricky. Every line here is Opus output that every agent then reads. End it
+  with an **env table** `NAME | type | example | required in prod`: every env var the app reads, with its
   exact format (e.g. `TRUST_PROXY | int hop count, or true/false`). Backend and devops both
   follow it; nobody invents a format.
 - `docs/api-types.ts` — every request/response type and enum of the contract as TypeScript.
@@ -263,10 +293,10 @@ Write these files, then show the user a short summary:
   contract (same approval rule). Writing it once here saves each side from re-typing the contract.
 - `docs/tasks.md` — task table: `ID | Agent | Task | Files owned | Depends on | Est. min | Status`.
   Each file/folder is owned by exactly ONE agent. No overlaps.
-  - **Size every task:** max ~10 endpoints (backend) or ~6 screens (frontend), ~20 min of work.
-    Split bigger areas by sub-domain (e.g. finance → `charges` and `ledger`; accounts → `auth`
-    and `admin`). Balance so no task is more than ~1.5× the median `Est. min`; the longest
-    chain (skeleton + largest task) is your wall-clock time.
+  - **Size by agent, not by endpoint:** at most **2 backend + 2 frontend** agents in Phase 2
+    (often 1 + 1 for M). Each owns several module folders, ~30–45 min of work. Split further only
+    when one agent's work would exceed ~45 min; balance so none is more than ~1.5× the median
+    `Est. min`. Modules stay separate folders (ownership), even when one agent owns several.
   - Features (auth, admin, CRUD screens…) are module tasks, **never** part of the skeleton.
   - **Cross-module functions:** when one module calls another (e.g. charges needs
     `isMonthLocked()` from ledger), list the exact signature in a "Cross-module functions"
@@ -274,35 +304,48 @@ Write these files, then show the user a short summary:
     mock in their tests) and never edit the owner's folder.
   - One folder per module: `backend/src/modules/<module>/`, `backend/tests/<module>/`,
     `frontend/src/features/<module>/` — that's what makes ownership non-overlapping.
+- **Contract review before spawning (2 min, saves whole fix rounds):** for every screen in the
+  spec, name the endpoint(s) it calls and check in the permission matrix that the screen's role
+  may call them (e.g. "front desk picks an assignee → who may list mechanics?"). For
+  customer-facing pages, check that every field they display is in the response type. A gap
+  found later means continuing an agent, which reloads its 100k+ history.
 
-## Phase 1b — Skeleton (L only; skip for M when the plumbing already exists)
+## Phase 1b — Skeleton (only when no starter repo provides the plumbing)
 Commit the docs on the integration branch first (worktrees branch from HEAD). Then spawn ONE
 `backend` and ONE `frontend` agent (same message, worktrees), time box ~10–15 min each, **plumbing
-only, no features**:
-- backend: package.json, app bootstrap, config (from the env table), error shape, the **full DB
-  schema** + first migration + dev seed, auth *middleware* and role helpers (not the auth
-  endpoints), mail/job/file helpers if the spec needs them, test helpers (isolated schema),
-  Swagger, static serving + SPA fallback, `/health`, and **one empty plugin per backend module in
-  tasks.md, already registered** under its route prefix.
+only, no features**. Keep it thin: it blocks everything else, and an overloaded skeleton
+(workers, rate limits, uploads, mail) easily takes 45 min. Feature-like helpers belong to the
+module that needs them.
+- backend: package.json, app bootstrap, config (from the env table; empty env vars count as
+  unset), error shape, the **full DB schema** + first migration + dev seed, auth *middleware* and
+  role helpers (not the auth endpoints), test helpers (isolated schema), Swagger, static serving +
+  SPA fallback, `/health`, and **one empty plugin per backend module in tasks.md, already
+  registered** under its route prefix, with the cross-module function stubs.
 - frontend: Vite/Tailwind/i18n/router/layout, `request()` client using `docs/api-types.ts`, UI kit,
   MSW setup, and **one empty feature folder per frontend module in tasks.md** (routes, nav,
   i18n namespace, mocks), already wired in through an explicit registry file.
+- both: append your part to `docs/core.md` (≤30 lines each: helper names, import paths, test
+  helpers, how tests install mocks/handlers). Module agents read this instead of exploring core.
 Done means: lint/build/tests pass, the server starts and serves a dummy UI (backend), committed.
-Merge both, then run Phase 2. Skeleton agents may be continued for a module task in Phase 2.
+Merge both, then **run `docker build .` yourself** (in the background) before Phase 2: image bugs
+(missing files in the build context, env parsing) are cheapest to fix while nothing else runs.
 
 ## Phase 2 — Parallel build
-Spawn **one agent per module task** (from tasks.md), **in the same message** so they run in
-parallel, each with `isolation: "worktree"`. For L, several agents of the same type
-(`backend` × 4, `frontend` × 4…) is normal; each owns only its module folders.
-- **Pipeline, don't batch:** start each task the moment ITS dependencies are merged, not when
-  the whole wave is done (frontend modules need only the frontend skeleton; mocks cover the API).
-  Merge each finished branch right away so later tasks start from it.
+Spawn **one agent per task** (from tasks.md), **in the same message** so they run in
+parallel, each with `isolation: "worktree"`. Cap: 2 backend + 2 frontend (+ devops only for infra
+changes); each owns only its module folders.
+- **Start early, merge in waves:** start each task as soon as ITS dependencies are merged
+  (frontend needs only the frontend plumbing; mocks cover the API). When reports come in, merge
+  every finished branch in **one** turn (`git merge <b1> <b2> …`) instead of one turn per report.
+  Reply to a report only when it needs action.
 - Every prompt starts with "run `git merge <integration-branch>` in your worktree first".
 Keep every prompt short (≤ ~200 words) and self-contained:
 - The task IDs it owns, the exact folders it may edit, and the acceptance-criteria IDs it covers.
 - Which sections of `docs/spec.md` / `docs/api-contract.md` to read (by heading). Point to
   files; don't paste their content.
-- "Done means": builds, lints, its own unit tests pass, branch committed.
+- "Done means": builds, lints, its own tests pass (`test:ci` once; no Docker builds, no
+  browsers), branch committed.
+- If it may start a dev server: a unique port per agent (e.g. 5201, 5202…).
 - "Report back in ≤150 words: branch, files changed, check results (pass/fail + failing lines
   only), open questions, any contract change you need (do NOT make it yourself)."
 Record each agent's **name/ID** so you can continue it later (Phase 5).
@@ -313,8 +356,8 @@ Record each agent's **name/ID** so you can continue it later (Phase 5).
 2. Merge the branches into an integration branch; resolve conflicts yourself.
 3. Run build + lint + tests **with the same commands CI runs** (clean `npm ci`, `npm run lint`,
    `npm run test:ci`; read them from the CI file, not from memory) with quiet output
-   (`| tail -n 50`). If broken, send the failing
-   lines to the owning agent.
+   (`| tail -n 50`). Run `test:ci` **3× here** (agents ran it once) to catch flaky tests.
+   If broken, send the failing lines to the owning agent.
 4. **Image smoke (before Phase 4, every time deps, Dockerfile or compose changed):** build and
    start the app image the way CI does (e.g. `docker compose … up -d --build --wait`, in the
    background with a long timeout), then hit the health endpoint and `/`. If it fails, send
@@ -384,8 +427,10 @@ Otherwise skip this step, keep the branches, and say why in the report.
 - Never let two agents edit the same file.
 - Never invent requirements — if unsure, ask.
 - Keep sub-agent prompts self-contained: they don't see this conversation.
-- For S/M prefer fewer agents (each spawn starts cold and re-reads files). For L prefer more,
-  smaller module tasks after the skeleton: total tokens stay similar, wall-clock time drops.
+- Prefer fewer agents at every size: each spawn starts cold and re-reads ~30–50k tokens, and
+  each report wakes you. More agents only pay off when one task would exceed ~45 min.
+- Keep your own turns short: read agent reports, never their transcripts; don't restate reports
+  to the user, just summarize what changed.
 - Background agents can't answer permission prompts; a blocked command looks like a hang.
   Long-running commands they need must be allowed in `.claude/settings.json`.
 - Agents running in parallel must not share mutable test state (same test DB, same port).
@@ -398,8 +443,9 @@ Otherwise skip this step, keep the branches, and say why in the report.
 
 `deny` stops every agent from opening or searching generated folders. `allow` pre-approves the
 long build/test commands: sub-agents run in the background and **can't answer a permission
-prompt**, so an un-allowed `docker build` or e2e run just stalls. Adjust the list to your stack;
-on Windows add the same entries as `PowerShell(...)`.
+prompt**, so an un-allowed `docker build` or e2e run just stalls (and a stalled agent keeps
+its context open while you wait). Adjust the list to your stack; on Windows add the same
+entries as `PowerShell(...)`.
 
 ```json
 {
@@ -410,6 +456,15 @@ on Windows add the same entries as `PowerShell(...)`.
       "Bash(npm run:*)",
       "Bash(npm test:*)",
       "Bash(npx playwright:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git merge:*)",
       "Bash(docker build:*)",
       "Bash(docker compose:*)",
       "Bash(docker ps:*)",
@@ -445,8 +500,8 @@ effort: medium
 
 You are a senior frontend engineer. Follow the token rules in `CLAUDE.md`.
 
-**Before coding:** read your task IDs in `docs/tasks.md` and only the sections of
-`docs/spec.md` / `docs/api-contract.md` the brain named.
+**Before coding:** read your task IDs in `docs/tasks.md`, `docs/core.md` (core APIs: don't
+explore core code), and only the sections of `docs/spec.md` / `docs/api-contract.md` the brain named.
 
 **You may edit only:** `frontend/**` (and anything else explicitly assigned to you).
 
@@ -459,6 +514,9 @@ You are a senior frontend engineer. Follow the token rules in `CLAUDE.md`.
   `nav.ts`, i18n namespace, mocks, tests) and is wired in through an **explicit registry file**
   (`src/features/index.ts` importing each feature), not `import.meta.glob`: Vitest caches glob
   results, so feature files added later are silently missed. Edit only your own feature folder.
+- **Mocks are per test:** feature tests install their own handlers with `server.use(...)` in
+  `beforeEach`. Never rely on the global handler list: other features mock the same URLs, and
+  after the merge the first match wins, so tests that passed alone fail on the integration branch.
 - Handle loading, empty, and error states for every screen. Accessible markup (labels, roles, keyboard).
 - **Responsive, mobile-first:** every screen works on mobile, tablet and desktop. Base styles
   target ~360px, then `min-width` breakpoints (e.g. 640 / 1024px). Fluid layouts (flex/grid,
@@ -474,20 +532,21 @@ You are a senior frontend engineer. Follow the token rules in `CLAUDE.md`.
 
 **CI script:** keep a `test:ci` package script — the exact command CI runs (e.g. tests + coverage
 reporters) — and the dev-deps it needs (e.g. `@vitest/coverage-v8` at the same version as
-`vitest`). Run `npm run test:ci`, not just `npm test`, **3 times in a row** before reporting: coverage
-instrumentation and parallel workers (as on a CI runner) make tests slower, and a test that fails
-only sometimes is a timing bug. Fix it properly (await the element you need, e.g. the `<option>`
-before `selectOptions`; realistic limits in the test config such as `testTimeout: 20000` and
-Testing Library `asyncUtilTimeout: 5000`), never with retries.
+`vitest`). Run `npm run test:ci`, not just `npm test`, once before reporting (the brain repeats it
+3× at integration). Coverage instrumentation and parallel workers make tests slower, and a test
+that fails only sometimes is a timing bug. Fix it properly (await the element you need, e.g. the
+`<option>` before `selectOptions`; realistic limits in the test config such as `testTimeout: 20000`
+and Testing Library `asyncUtilTimeout: 5000`, and toast/timer durations that aren't tiny), never
+with retries.
 
-**Done means:** `lint`, `typecheck`, `build`, and `npm run test:ci` pass; a clean `npm ci` works; if
-you changed dependencies, the image's frontend stage builds (`docker build --target <frontend-stage> .`,
-run in the background, since cold installs are slow); every new/changed screen
-checked at 360px, 768px and 1280px widths; work committed on your branch.
+**Done means:** `lint`, `typecheck`, `build`, and `npm run test:ci` pass; if you changed dependencies,
+a clean `npm ci` works and you say so in the report (the brain builds the image); every new screen
+follows the mobile-first rules above (the tester's responsive spec verifies 360/768/1280px once;
+don't start browsers yourself); work committed on your branch.
 
 **Report back (≤150 words):** branch, files changed, check results (failing lines only),
-responsive check (widths verified, any known issues), acceptance criteria covered, open questions,
-contract changes you need (describe — do not edit the contract).
+acceptance criteria covered, open questions, contract changes you need (describe — do not edit
+the contract). If a needed field/endpoint is missing, continue with the most likely shape and say so.
 ```
 
 ### `backend.md`
@@ -503,8 +562,8 @@ effort: medium
 
 You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.md`.
 
-**Before coding:** read your task IDs in `docs/tasks.md` and only the sections of
-`docs/spec.md` / `docs/api-contract.md` the brain named.
+**Before coding:** read your task IDs in `docs/tasks.md`, `docs/core.md` (core helpers: don't
+explore core code), and only the sections of `docs/spec.md` / `docs/api-contract.md` the brain named.
 
 **You may edit only:** `backend/**` (and anything else explicitly assigned to you).
 
@@ -514,7 +573,10 @@ You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.m
 - Parameterized queries / ORM only. AuthN/AuthZ checks on every protected route.
 - Migrations are forward-only and reversible where possible; include seed data for dev.
 - Config via env vars, exactly as typed in the contract's env table (report a missing var; don't
-  invent its format). Add every new key with a working local/test value to the committed
+  invent its format). Empty values count as unset: compose passes optional vars as `${VAR:-}`,
+  and a URL check on `""` stops the container from starting.
+- From `docs/api-types.ts` use `import type` only: the server bundle and the Docker backend stage
+  must not depend on `docs/` at runtime. Redefine runtime values (e.g. status lists) locally. Add every new key with a working local/test value to the committed
   `backend/.env.development` and `backend/.env.test` (with a comment saying what it is).
 - **Modules:** each module is one plugin in `src/modules/<module>/` with tests in
   `tests/<module>/`, registered by the skeleton. Edit only your module's folders; call other
@@ -529,7 +591,8 @@ You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.m
 - Write unit tests for logic and integration tests per endpoint (happy path + main errors).
 - **Isolated test DB per run:** test setup creates its own database or schema (e.g.
   `?schema=test_<pid|worker-id>`), migrates it, and drops it after. Never share one fixed test DB:
-  parallel agents/workers then deadlock or wipe each other's data.
+  parallel agents/workers then deadlock or wipe each other's data. Route tests use `app.inject`
+  and never bind a port (other agents run at the same time).
 - **Make time testable:** background workers, schedulers and delays read their interval from env
   (fast values in `.env.test`, e.g. a mail worker every 500 ms, and in the compose dev/e2e env
   file, e.g. 1000 ms — e2e runs the production image, where test hooks don't exist, so a 10 s
@@ -561,18 +624,17 @@ You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.m
 **CI script:** keep a `test:ci` package script — the exact command CI runs (e.g. tests + coverage
 reporters) — and the dev-deps it needs (e.g. `@vitest/coverage-v8` at the same version as
 `vitest`). Your committed `.env.test` ports are what CI's services publish; tell devops if you
-change them. Run `npm run test:ci`, not just `npm test`, **3 times in a row** before reporting: coverage
-instrumentation and parallel workers (as on a CI runner) make tests slower, and a test that fails
-only sometimes is a timing bug. Fix it properly (await the element you need, e.g. the `<option>`
-before `selectOptions`; realistic limits in the test config such as `testTimeout: 20000` and
-Testing Library `asyncUtilTimeout: 5000`), never with retries.
+change them. Run `npm run test:ci`, not just `npm test`, once before reporting (the brain repeats
+it 3× at integration). A test that fails only sometimes is a timing bug: fix it properly (await
+what you need, realistic `testTimeout`), never with retries.
 
-**Done means:** lint, build, and `npm run test:ci` pass; a clean `npm ci` works; if you changed dependencies,
-the image's backend stage builds (`docker build --target <backend-stage> .`, in the background);
-the built server (`node dist/<entry>.js`) starts with `STATIC_DIR` pointing to a temp folder
-holding an `index.html` + `assets/x.js`, and `/`, an SPA route, `/health` and `/api/unknown`
-(JSON 404) all answer without crashing (an integration test for this is required); `/swagger`
-loads with the top-bar buttons; work committed on your branch.
+**Done means:** lint, build, and `npm run test:ci` pass; if you changed dependencies, a clean
+`npm ci` works and you say so in the report (the brain builds the image); work committed on your
+branch. **Skeleton/starter only:** the built server (`node dist/<entry>.js`) starts with
+`STATIC_DIR` pointing to a temp folder holding an `index.html` + `assets/x.js`, and `/`, an SPA
+route, `/health` and `/api/unknown` (JSON 404) all answer (an integration test for this is
+required); `/swagger` loads with the top-bar buttons (check the served theme files, not just the
+HTML: Swagger UI puts custom CSS/JS in separate files).
 
 **Report back (≤150 words):** branch, endpoints implemented, files changed, check results
 (failing lines only), new env vars, open questions, contract changes you need (describe — do not edit the contract).
@@ -637,6 +699,12 @@ at the repo root.
     run at the same time.
 - Keep the committed `.env.development` / `.env.test` files out of the production image
   (`.dockerignore`), but don't gitignore them.
+- **Shared contract types in the image:** frontend and backend import `docs/api-types.ts` (alias
+  to `../docs/api-types.ts`). `.dockerignore` must let it through (`docs/*` + `!docs/api-types.ts`),
+  and each build stage copies it so the alias resolves (e.g. `COPY docs/api-types.ts /docs/`
+  when the stage's WORKDIR is `/build`). Without this, the first real image build fails.
+- Optional vars in compose are `${VAR:-}` (empty string). The app must treat empty as unset; check
+  that the app container actually becomes healthy (`up --wait`), not only that the image builds.
 - CI tests use the committed `.env.test`, with no extra GitHub secrets needed to run tests.
 - CI pipeline: install → lint → test → build image → (optional) scan image. Cache dependencies
   (`actions/setup-node` `cache: npm`), cache image layers (`cache-from: type=gha`,
@@ -1111,7 +1179,10 @@ jobs:
 
 ## 8. How to use it
 
-1. Create the files above in your project (and fill in `CLAUDE.md`).
+1. Create the files above in your project (and fill in `CLAUDE.md`), or clone your starter repo
+   that already has them plus the plumbing (then skip step 2).
+   **Restart Claude Code afterwards:** skills and agent types are loaded when a session starts,
+   so `/task` and the `frontend`/`backend`/… agents don't exist in the session that created them.
 2. Open Claude Code in the project. **First run, once:**
 
    ```
@@ -1132,9 +1203,10 @@ jobs:
 
 4. The brain triages it (S/M/L). For M/L, answer its clarifying questions and approve the
    requirement summary.
-5. It writes the spec/contract (+ `docs/api-types.ts` and a sized task board). For L it first
-   runs a short skeleton step, then one agent per module in parallel, and comes back with a
-   report and a **cost table**.
+5. It writes the spec/contract (+ `docs/api-types.ts` and a sized task board). Then run
+   `/compact` and `/model sonnet` as it suggests. Without a starter repo it first runs a short
+   skeleton step; then at most 2 backend + 2 frontend agents work in parallel, and it comes back
+   with a report.
 6. When everything passes, the brain merges the integration branch into your local `main` and
    deletes the agent worktrees and branches, so `main` is never left behind and the branch list
    stays clean. It never pushes: review `main` (`git log`, `git diff origin/main`) and push
@@ -1158,6 +1230,15 @@ Start with Phase T (triage), then Phase 0: ask me your clarifying questions befo
 
 | Saving | Where |
 |---|---|
+| Starter repo: no init/skeleton/image debugging per project | §2, brain Phase T / 1b |
+| MVP slice recommended for L requests | brain Phase 0 |
+| Few agents (≤ 2 backend + 2 frontend): orientation (~30–50k each) paid 4×, not 15× | brain Phase 1 / 2, rule 3 |
+| `docs/core.md` cheat-sheet instead of exploring core code | brain Phase 1b, agent prompts |
+| Brain: Opus only for clarify + spec, then `/compact` + `/model sonnet`; merges in waves | brain intro, Phase 2 |
+| Terse contract (types file + tables, no prose that repeats types) | brain Phase 1 |
+| Contract review before spawning: fewer agent continuations | brain Phase 1 |
+| Verification once: agents run `test:ci` once; brain does 3× + image; tester does responsive | `CLAUDE.md`, brain Phase 3, agent prompts |
+| Per-test mocks: no post-merge mock collisions and fix rounds | `frontend.md` |
 | Small tasks skip the team (S = brain alone or one agent) | brain Phase T |
 | Only agents with tasks are spawned; devops only for infra changes | brain Phase T / 2 |
 | One-time `/task init` for Docker/CI/`.vscode` | brain Phase T |
@@ -1170,7 +1251,6 @@ Start with Phase T (triage), then Phase 0: ask me your clarifying questions befo
 | `effort: medium` for implementers and tester | agent frontmatter |
 | Repo scan on `haiku` via `Explore` instead of on Opus | brain Phase 0 |
 | Security: full Opus review only when risky files changed | brain Phase 4 |
-| Cost table per run | brain Phase 6 |
 
 **Build & test speed: what this template does (and why)**
 
@@ -1179,9 +1259,9 @@ build discovered late, and agents waiting on things they can't fix.
 
 | Speed-up | Where |
 |---|---|
-| Thin, time-boxed skeleton (plumbing + empty module stubs), then one agent per module | brain Phase 1b / 2 |
-| Tasks sized (~10 endpoints / ~6 screens, `Est. min`) and balanced: no long pole | brain Phase 1 |
-| Pipelining: each task starts when ITS dependency merges, not when the wave ends | brain Phase 2 |
+| Starter repo, or a thin time-boxed skeleton; brain builds the image right after it | §2, brain Phase 1b |
+| Tasks sized per agent (~30–45 min) and balanced: no long pole | brain Phase 1 |
+| Each task starts when ITS dependency merges; finished branches merged in one turn | brain Phase 2 |
 | Cross-module function signatures in tasks.md: modules don't wait on each other | brain Phase 1, `backend.md` |
 | Env table with types in the contract: no backend↔compose format mismatches | brain Phase 1, `backend.md`, `devops.md` |
 | Backend starts the built server with a dummy UI before reporting: static-serving bugs caught early | `backend.md` |
@@ -1206,9 +1286,11 @@ build discovered late, and agents waiting on things they can't fix.
 
 **Habits**
 - **Fresh session per `/task`** (`/clear`). State lives in `docs/`, not in the conversation.
-- **Check `/cost`** after each run and compare with the brain's cost tables. If one agent is
-  always the most expensive, tighten its prompt or its model.
+- **Check `/cost`** after each run. Each agent's completion notice shows its tokens; if one agent
+  type is always the most expensive, tighten its prompt or its model.
 - **Start small.** Try it on one small feature first; tune the agent prompts from what goes wrong.
+- **Interview / demo budget:** starter repo + MVP slice + 1 backend and 1 frontend agent + tester
+  (security as a light `sonnet` pass). Brain on Opus only until the spec is approved.
 - **Tool permissions:** `security` has no Write/Edit on purpose. `tester` is told not to
   touch app code. Tighten `tools:` further if an agent oversteps.
 - **Conflicts:** if two agents need the same file, the plan is wrong — the brain should
