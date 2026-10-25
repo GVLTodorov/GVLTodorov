@@ -379,40 +379,6 @@ Otherwise skip this step, keep the branches, and say why in the report.
    green. Report the CI result; "pushed" is not "done" while CI is red. **One push at a time:**
    batch all fixes into one push and wait until the run on main finishes before pushing again;
    overlapping runs race on the badges branch and the release tag.
-**Never push** (main or any branch) unless the user explicitly asks. Never push the integration
-branch or an agent branch at all: if the user asks to push, push `main`. On GitHub the **first
-branch pushed to an empty repo becomes the default branch**, so a pushed feature branch can end
-up as the default and `main` goes missing.
-
-**Report:** give the user, briefly: what was built (mapped to acceptance criteria ✅/❌), test
-results, security summary, how to run it, the merge result (main's new HEAD, branches removed),
-open risks/TODOs. Stop the stack and any processes you started (free the ports).
-
-Finish with **two cost tables**. Each sub-agent's completion result includes its usage (total
-tokens, tool uses, duration).
-
-**1. Per sub-agent**: one row per agent. Add up every run of the same agent (first spawn +
-each continued fix round):
-
-| Agent | Model | Runs | Tool uses | Tokens | Duration |
-|---|---|---|---|---|---|
-| explore | haiku | 1 | … | … | … |
-| frontend | sonnet | 2 | … | … | … |
-| … | | | | | |
-| **Sub-agents total** | | | | **…** | **…** |
-
-**2. Per model**: one row per model used, summing the rows above (e.g. tester and security
-on `sonnet` share one row). Use it to see where the tokens go:
-
-| Model | Agents | Runs | Tokens | Share of tokens |
-|---|---|---|---|---|
-| opus | security | 1 | … | …% |
-| sonnet | frontend, backend, tester | 5 | … | …% |
-| haiku | explore | 1 | … | …% |
-| **Total** | | **…** | **…** | 100% |
-
-- The brain's own usage isn't in these tables. Tell the user to run `/cost` for the exact
-  session total, which includes the brain.
 
 ## Rules
 - Never let two agents edit the same file.
