@@ -40,8 +40,6 @@ Set up the multi-agent team template in this empty project.
 5. Delete template-source.md. Make the first commit:
    "chore: add multi-agent team template".
 
-/task init
-
 ## Available commands
 
 ```
