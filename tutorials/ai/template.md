@@ -5,7 +5,7 @@ and hands work to **five specialist sub-agents** that work in parallel:
 
 | Agent | Responsibility | Model | Effort | Runs in parallel with |
 |---|---|---|---|---|
-| **brain** (main session) | Triages the task, asks clarifying questions, writes the spec + API contract, splits work, merges results, reports cost | `opus` | high | — |
+| **brain** (main session) | Triages the task, asks clarifying questions, writes the spec + API contract, splits work, merges results | `opus` | high | — |
 | `frontend` | UI, client state, API client code | `sonnet` | medium | backend, devops |
 | `backend` | API, business logic, data layer, migrations, Swagger | `sonnet` | medium | frontend, devops |
 | `devops` | Dockerfile, compose, CI/CD, versioning, coverage badges, `.vscode` | `sonnet` | medium | frontend, backend |
@@ -62,7 +62,7 @@ and hands work to **five specialist sub-agents** that work in parallel:
               tester                       security            ← Phase 4: parallel
                  └──────────────┬──────────────┘                 (security only if risky files changed)
                                 ▼
-         brain: fix loop (continue same agents) → report + cost table
+         brain: fix loop (continue same agents) → report
 ```
 
 **Two rules make parallelism work:**
@@ -88,8 +88,7 @@ your-project/
 ├── docs/
 │   ├── spec.md                      # written by brain after clarification
 │   ├── api-contract.md              # written by brain, the frontend↔backend contract
-│   ├── tasks.md                     # brain's task board (who does what, status)
-│   └── cost-log.md                  # brain appends a cost table after every /task
+│   └── tasks.md                     # brain's task board (who does what, status)
 └── .claude/
     ├── settings.json                # blocks reading generated folders (saves tokens)
     ├── skills/
@@ -166,7 +165,7 @@ Every agent reads this automatically, so keep it short; it is paid for on every 
 ---
 name: task
 model: opus
-description: Orchestrator for a feature. Triages the task, clarifies requirements with the user, writes the spec and API contract, then dispatches frontend/backend/devops/tester/security sub-agents in parallel, integrates their work and reports the cost. Use on /task or when the user wants to start a new feature with the agent team.
+description: Orchestrator for a feature. Triages the task, clarifies requirements with the user, writes the spec and API contract, then dispatches frontend/backend/devops/tester/security sub-agents in parallel and integrates their work. Use on /task or when the user wants to start a new feature with the agent team.
 ---
 
 You are the **lead engineer and orchestrator**. For M/L tasks you do not write feature code
@@ -252,45 +251,11 @@ Give the user, briefly: what was built (mapped to acceptance criteria ✅/❌), 
 security summary, how to run it, open risks/TODOs. Do not commit to main or push unless
 the user explicitly asks.
 
-Finish with the **cost table**. Each sub-agent's completion result includes its usage (total
-tokens, tool uses, duration). Add up every run of the same agent (first spawn + each continued
-fix round):
-
-| Agent | Model | Runs | Tool uses | Tokens | Duration | Est. cost |
-|---|---|---|---|---|---|---|
-| explore | haiku | 1 | … | … | … | $… |
-| frontend | sonnet | 2 | … | … | … | $… |
-| … | | | | | | |
-| **Sub-agents total** | | | | **…** | **…** | **$…** |
-
-- Est. cost = tokens × the blended $/1M-token rate for that model from `docs/cost-log.md`.
-  Label it an estimate. If no rates are filled in, leave the column as `—`.
-- The brain's own usage isn't in this table. Tell the user to run `/cost` for the exact
-  session total, which includes the brain.
-- Append the table, dated and with the task title and size (S/M/L), to `docs/cost-log.md`.
-
 ## Rules
 - Never let two agents edit the same file.
 - Never invent requirements — if unsure, ask.
 - Keep sub-agent prompts self-contained: they don't see this conversation.
 - Prefer fewer agents. Each spawn starts cold and re-reads files.
-```
-
-### `docs/cost-log.md` (starter)
-
-```markdown
-# Cost log
-
-Blended $ per 1M tokens, used by the brain for estimates. Fill in from
-https://www.anthropic.com/pricing (a blend of input/output/cache; rough is fine):
-
-| Model | $/1M tokens (blended) |
-|---|---|
-| opus | <fill in> |
-| sonnet | <fill in> |
-| haiku | <fill in> |
-
-<!-- The brain appends one dated table per /task below, newest on top. -->
 ```
 
 ---
@@ -776,8 +741,7 @@ jobs:
 
 ## 8. How to use it
 
-1. Create the files above in your project (and fill in `CLAUDE.md` and the rates in
-   `docs/cost-log.md`).
+1. Create the files above in your project (and fill in `CLAUDE.md`).
 2. Open Claude Code in the project. **First run, once:**
 
    ```
@@ -797,8 +761,8 @@ jobs:
 4. The brain triages it (S/M/L). For M/L, answer its clarifying questions and approve the
    requirement summary.
 5. It writes the spec/contract, starts only the agents that have work, and comes back with a
-   report and a **cost table**.
-6. Run `/cost` for the exact session total. Review the integration branch yourself before merging to main.
+   report.
+6. Run `/cost` for the session total (a CLI command, uses no tokens). Review the integration branch yourself before merging to main.
 
 ### Starter prompt (if you prefer not to use the skill)
 
@@ -829,12 +793,11 @@ Start with Phase T (triage), then Phase 0: ask me your clarifying questions befo
 | `effort: medium` for implementers and tester | agent frontmatter |
 | Repo scan on `haiku` via `Explore` instead of on Opus | brain Phase 0 |
 | Security: full Opus review only when risky files changed | brain Phase 4 |
-| Cost table per run + `docs/cost-log.md` to track trends | brain Phase 6 |
 
 **Habits**
 - **Fresh session per `/task`** (`/clear`). State lives in `docs/`, not in the conversation.
-- **Check `/cost`** after each run and compare with `docs/cost-log.md`. If one agent is
-  always the most expensive, tighten its prompt or its model.
+- **Check `/cost`** after each run. If runs keep getting expensive, tighten the prompt or
+  model of the agent doing the most work.
 - **Start small.** Try it on one small feature first; tune the agent prompts from what goes wrong.
 - **Tool permissions:** `security` has no Write/Edit on purpose. `tester` is told not to
   touch app code. Tighten `tools:` further if an agent oversteps.
