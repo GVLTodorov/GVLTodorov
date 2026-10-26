@@ -9,13 +9,21 @@ Set up the multi-agent team template in this empty project.
 3. Create these files from the template's code blocks. Copy each block's content
    exactly: no outer fence (``` or ````), and no rewording, shortening or "improving".
    - CLAUDE.md ← section 3
-   - .claude/skills/task/SKILL.md ← section 4
+   - .claude/skills/task/SKILL.md ← section 4 "SKILL.md"
+   - .claude/skills/task/init.md ← section 4 "init.md"
+   - .claude/skills/task/skeleton.md ← section 4 "skeleton.md"
+   - .claude/skills/task/mobile.md ← section 4 "mobile.md"
+   - .claude/skills/task/security.md ← section 4 "security.md"
+   - .claude/skills/task/ship.md ← section 4 "ship.md"
    - .claude/settings.json ← section 5
+   - .claude/agents/planner.md ← section 6 "planner.md"
    - .claude/agents/frontend.md ← section 6 "frontend.md"
    - .claude/agents/backend.md ← section 6 "backend.md"
    - .claude/agents/devops.md ← section 6 "devops.md"
    - .claude/agents/tester.md ← section 6 "tester.md"
    - .claude/agents/security.md ← section 6 "security.md"
+   - .claude/templates/backend-setup.md ← section 7
+   - .claude/templates/devops-setup.md ← section 7
    - .claude/templates/swagger-topbar.js ← section 7
    - .claude/templates/ci.yml ← section 7
    - .claude/templates/vscode-launch.jsonc ← section 7
