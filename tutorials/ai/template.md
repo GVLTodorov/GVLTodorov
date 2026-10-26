@@ -1408,7 +1408,7 @@ jobs:
    /task Build a <short description of the feature>, e.g. "a todo app with user login and shared lists"
    ```
 
-   `/task` is the only command. The name comes from the skill's folder (`.claude/skills/task/`)
+   `/task` is the only entry point; everything else is a subcommand of it. The name comes from the skill's folder (`.claude/skills/task/`)
    and its `name: task` field; keep both the same, or rename both for a different trigger.
 
 4. The brain triages it (S/M/L). A small fix is done right away. For M/L, answer its clarifying
@@ -1422,6 +1422,9 @@ jobs:
    stays clean. It never pushes: review `main` (`git log`, `git diff origin/main`) and push
    yourself. Run `/cost` for the exact session total.
 7. **On demand:**
+   - `/task integration` (or `/task integration <pages/flows/AC IDs>`): builds and runs the
+     integration + e2e tests for every acceptance criterion that has none yet, or only the given
+     scope.
    - `/task mobile` (or `/task mobile <pages>`): makes the UI work on phones and tablets and adds
      the mobile e2e checks. Run it when the desktop UI has settled, not after every feature.
    - `/task security`: reviews everything since the last review (recorded in

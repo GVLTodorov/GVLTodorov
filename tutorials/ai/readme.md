@@ -33,14 +33,16 @@ Set up the multi-agent team template in this empty project.
      devops creates those later from the templates.
 
 4. Ask me in ONE question round, with a recommended default for each:
-   project name, frontend framework, backend framework (Node.js), database, test tools.
+   project name, runtime version (Node.js, written to .nvmrc), frontend framework,
+   backend framework (Node.js), database, infra (e.g. Docker Compose + GitHub Actions), test tools.
    Then replace every <placeholder> in CLAUDE.md with my answers, including the Commands
    section. Leave the other files exactly as copied.
 
 5. Delete template-source.md. Make the first commit:
    "chore: add multi-agent team template".
 
-/task init
+6. Tell me to restart Claude Code and then run `/task init`. Skills and agents load only
+   when a session starts, so they don't exist yet in this session.
 
 ## Available commands
 
