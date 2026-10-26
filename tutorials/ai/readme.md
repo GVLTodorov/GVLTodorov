@@ -12,6 +12,7 @@ Set up the multi-agent team template in this empty project.
    - .claude/skills/task/SKILL.md ← section 4 "SKILL.md"
    - .claude/skills/task/init.md ← section 4 "init.md"
    - .claude/skills/task/skeleton.md ← section 4 "skeleton.md"
+   - .claude/skills/task/integration.md ← section 4 "integration.md"
    - .claude/skills/task/mobile.md ← section 4 "mobile.md"
    - .claude/skills/task/security.md ← section 4 "security.md"
    - .claude/skills/task/ship.md ← section 4 "ship.md"
@@ -40,3 +41,15 @@ Set up the multi-agent team template in this empty project.
    "chore: add multi-agent team template".
 
 /task init
+
+## Available commands
+
+```
+/task init                  // one-time project setup: folders, Docker, compose, CI, .vscode
+/task <request>             // build or fix something: triage S/M/L → questions → plan → backend → frontend → devops → tests → merge
+/task continue              // resume an interrupted run from the first unfinished stage in docs/tasks.md
+/task integration [scope]   // build and run integration + e2e tests (all untested ACs, or the given pages/flows/AC IDs)
+/task mobile [pages]        // responsive pass for phones/tablets + mobile e2e checks (all pages, or the named ones)
+/task security [base]       // security review of everything since the last review (or since base)
+```
+

@@ -66,7 +66,7 @@ requirements and hands work to **specialist sub-agents**, one stage at a time:
                                 ▼
      4. devops    (only for Docker/compose/CI/env/.vscode changes) → brain merges
                                 ▼
-     brain: CI commands 3× + image smoke + npm audit                  ← Phase 3
+     brain: CI commands 2× + image smoke + npm audit                  ← Phase 3 (integration.md)
                                 ▼
      5. tester    (integration + e2e against the running stack)       ← Phase 4
                                 ▼
@@ -86,8 +86,8 @@ requirements and hands work to **specialist sub-agents**, one stage at a time:
    brain is the only one who merges.
 3. **Few agents, each with real work.** **Cost is set by the number of agent starts**: every
    spawn pays ~30–50k tokens just to read `CLAUDE.md`, its prompt, the docs and the core code
-   before writing a line. Start from a starter repo (no skeleton stage) and use ONE agent per stage;
-   two only when a stage would exceed ~45 min. Fifteen small agents cost far more than a few larger ones.
+   before writing a line. Start from a starter repo (no skeleton stage) and use ONE agent per stage:
+   at most one `backend` and one `frontend` agent, never split. Fifteen small agents cost far more than a few larger ones.
 
 Mobile and security are **detached**: feature runs build desktop-first and skip the security
 agent. Run `/task mobile` when the UI needs a phone/tablet pass, and `/task security` before a release.
@@ -126,6 +126,7 @@ your-project/
     │       ├── SKILL.md
     │       ├── init.md              # read only by /task init
     │       ├── skeleton.md          # read only when there's no starter repo
+    │       ├── integration.md       # read by /task integration and build-run Phase 3–4
     │       ├── mobile.md            # read only by /task mobile
     │       ├── security.md          # read only by /task security
     │       └── ship.md              # read only at the end (merge, cleanup, CI check)
@@ -241,7 +242,7 @@ re-read on every wake.
 ---
 name: task
 model: sonnet
-description: Orchestrator and single entry point for the agent team. Triages the request, clarifies requirements, has the planner write the plan, then runs the stages skeleton → backend → frontend → devops → integration tests and merges. Also /task init, /task mobile, /task security and /task continue. Use on /task or when the user wants the agent team to build or fix something.
+description: Orchestrator and single entry point for the agent team. Triages the request, clarifies requirements, has the planner write the plan, then runs the stages skeleton → backend → frontend → devops → integration tests and merges. Also /task init, /task integration, /task mobile, /task security and /task continue. Use on /task or when the user wants the agent team to build or fix something.
 ---
 
 You are the **orchestrator**. You don't write feature code; you clarify, delegate, integrate and
@@ -254,6 +255,7 @@ each agent start costs ~30–50k tokens of orientation. So: few agents, short tu
 ## Mode (always first)
 - `/task init` → read `.claude/skills/task/init.md` and follow it, then Phase 6.
 - `/task mobile [pages]` → read `.claude/skills/task/mobile.md` and follow it.
+- `/task integration [scope]` → read `.claude/skills/task/integration.md` and follow it.
 - `/task security [base]` → read `.claude/skills/task/security.md` and follow it.
 - `/task continue` → check out the integration branch named at the top of `docs/tasks.md` and
   resume Phase 2 at the first stage whose tasks aren't `Done`.
@@ -312,8 +314,8 @@ into the integration branch:
 4. **DevOps**: `devops`, only when the feature changes Docker, compose, CI/CD, env files or `.vscode`.
 
 For every stage:
-- Usually ONE agent. Two agents of the same type (same message) only when the stage's work
-  exceeds ~45 min and splits into disjoint module folders.
+- Exactly ONE agent per stage: never more than one `backend` or one `frontend` agent at a time,
+  even when the stage is large (it owns all of that side's module folders).
 - `isolation: "worktree"`; every prompt starts with "run `git merge <integration-branch>` in your
   worktree first".
 - Keep every prompt short (≤ ~200 words) and self-contained: the task IDs it owns, the exact
@@ -330,26 +332,9 @@ For every stage:
   the next stage. Reply to a report only when it needs action.
 - Record each agent's **name/ID** so you can continue it later (Phase 5).
 
-## Phase 3 — Integrate (after the last build stage)
-1. Run build + lint + tests **with the same commands CI runs** (clean `npm ci`, `npm run lint`,
-   `npm run test:ci`; read them from the CI file, not from memory) with quiet output
-   (`| tail -n 50`). On the **first** integration run `test:ci` 3× to catch flaky tests; after a
-   fix round, once for the affected project. If broken, send the failing lines to the owner.
-2. **Image smoke (every time deps, Dockerfile or compose changed):** build and start the app image
-   the way CI does (e.g. `docker compose … up -d --build --wait`, in the background with a long
-   timeout), then hit the health endpoint and `/`. If it fails, send the failing build lines to
-   the owner of that stage (devops for Dockerfile/compose, frontend/backend for their
-   lockfile/deps) and fix it **before** Phase 4. A broken image found during e2e costs the most
-   time of anything in this workflow.
-3. If a lockfile changed: `npm audit --omit=dev --audit-level=high | tail -n 30` in each package;
-   route High/Critical findings to the owner.
-4. Leave the stack running for Phase 4 and note its URLs (app, mail sink, etc.).
-
-## Phase 4 — Integration tests
-Spawn `tester` (M/L). Its prompt gives the running stack's URLs (e.g. `BASE_URL`) and says:
-"Don't build or start the app yourself; if it isn't reachable, report that at once." Time box:
-one full run, then `--last-failed`, at most 2 reruns, then report.
-No security agent here: security is reviewed on demand with `/task security`.
+## Phase 3–4 — Integrate and test (after the last build stage)
+Read `.claude/skills/task/integration.md` and follow it (build-run mode). Leave the stack
+running until the tester has reported.
 
 ## Phase 5 — Fix loop
 - Route each failed test / finding to the owning agent. **Continue that same agent with
@@ -432,6 +417,42 @@ image bugs (missing files in the build context, env parsing) are cheapest to fix
 else runs.
 ```
 
+### `.claude/skills/task/integration.md`
+
+```markdown
+# /task integration — build and run integration + e2e tests
+
+Used two ways:
+- **Standalone** `/task integration [scope]`: adds or updates the integration/e2e tests for the
+  current app. `scope` = pages, flows or AC IDs (default: every AC in `docs/spec.md` that has no
+  test in `e2e/` yet). Create `test/integration-<slug>` from `main` (or stay on the integration
+  branch named in `docs/tasks.md` if a run is in progress).
+- **Phase 3–4 of a build run**: called by SKILL.md after the last build stage.
+
+1. **Checks** with the same commands CI runs (read them from the CI file: clean `npm ci`,
+   `npm run lint`, `npm run test:ci`), quiet output (`| tail -n 50`). First integration of a build
+   run: `test:ci` 2× to catch flaky tests; standalone or after a fix round: 1×. Broken → send the
+   failing lines to the owner (SKILL.md Phase 5) before going on.
+2. **Image smoke** (always standalone; in a build run when deps, Dockerfile or compose changed):
+   build and start the app image the way CI does (e.g. `docker compose … up -d --build --wait`,
+   in the background with a long timeout), then hit the health endpoint and `/`. Run it in
+   parallel with step 1. Fail → the owner fixes it (devops for Dockerfile/compose,
+   frontend/backend for their lockfile/deps) **before** step 4.
+3. If a lockfile changed: `npm audit --omit=dev --audit-level=high | tail -n 30` in each package;
+   route High/Critical findings to the owner.
+4. Spawn `tester` (worktree) with: the scope/AC IDs, the running stack's URLs (`BASE_URL`, e2e DB,
+   mail UI), the admin/test credentials file, and: "Don't build or start the app yourself; if it
+   isn't reachable, report that at once. Seed data through the API or the e2e DB, never real
+   outside sources. Fail any test that logs a console error. Time box: one full run, then
+   `--last-failed`, at most 2 reruns, then report. Don't fix app code: report app bugs with
+   evidence and the likely owner."
+5. Merge the tester's branch. App bugs → SKILL.md Phase 5 (max 2 fix rounds; restart/rebuild the
+   stack after each fix before re-testing).
+6. Stop the stack you started. Standalone: when green, follow Phase 6 (`ship.md`). Report:
+   flows/ACs covered, pass/fail, app bugs with owner.
+No security agent here: security is reviewed on demand with `/task security`.
+```
+
 ### `.claude/skills/task/mobile.md`
 
 ```markdown
@@ -450,7 +471,7 @@ phones and tablets, once, for the pages that need it.
      Viewport meta tag present.
    - Touch targets ≥44×44px; nothing hover-only. Navigation collapses to a menu; wide tables
      become cards or scroll inside their own container; media scales (`max-width: 100%`).
-3. Merge, run the frontend `lint` + `test:ci`, then start the stack (SKILL.md Phase 3, step 2).
+3. Merge, run the frontend `lint` + `test:ci`, then start the stack (`integration.md` step 2).
 4. Spawn `tester` with the stack URLs and: "Add a `mobile` project (e.g. Playwright
    `devices['iPhone 13']`) for the `@smoke` journeys, and ONE responsive spec that opens the scoped
    pages at 360 / 768 / 1280px and asserts no horizontal scroll (`scrollWidth <= clientWidth`).
@@ -603,9 +624,9 @@ Every line you write is Opus output that every agent then reads: terse, no repet
 - `docs/tasks.md` — task table `ID | Stage | Agent | Task | Files owned | Depends on | Est. min | Status`.
   Stages run in order: `skeleton` (only without a starter repo) → `backend` → `frontend` →
   `devops` → `tests`. Each file/folder is owned by exactly ONE agent.
-  - **Size by agent, not by endpoint:** usually ONE agent per stage, ~30–45 min of work, owning
-    several module folders. Two agents in a stage only when its work exceeds ~45 min and splits
-    into disjoint module folders.
+  - **Size by agent, not by endpoint:** exactly ONE agent per stage, owning all of that stage's
+    module folders. Never more than one `backend` and one `frontend` agent; a large stage stays
+    one agent (if it's too big, recommend a smaller MVP slice instead).
   - Features (auth, admin, CRUD screens…) are module tasks, **never** part of the skeleton.
   - No `devops` task unless the feature changes Docker, compose, CI/CD, env files or `.vscode`.
   - **Cross-module functions:** when one module calls another (e.g. charges needs
@@ -1429,7 +1450,7 @@ Start with Phase T (triage), then Phase 0: ask me your clarifying questions befo
 | Brain on Sonnet for the whole run; Opus only in the planner (one small, fresh context per feature) | §4, `planner.md` |
 | One entry point (`/task`): no second command, no `/compact` call, no forgotten model switch | §4 |
 | Stages in order (skeleton → backend → frontend → devops → tests): frontend builds against the real backend, brain wakes ~once per stage | brain Phase 2 |
-| Few agents (usually one per stage): orientation (~30–50k each) paid a handful of times, not 15× | `planner.md`, brain Phase 2, rule 3 |
+| Few agents (one per stage; max 1 backend + 1 frontend): orientation (~30–50k each) paid a handful of times, not 15× | `planner.md`, brain Phase 2, rule 3 |
 | Mobile detached: no responsive rules or mobile e2e in feature runs; `/task mobile` once when needed | `mobile.md`, `frontend.md`, `tester.md` |
 | Security detached: no Opus review per feature; `/task security` reviews everything since the last review | `security.md` (skill), brain Phase 6 |
 | `docs/core.md` cheat-sheet instead of exploring core code | `skeleton.md`, agent prompts |
@@ -1437,7 +1458,7 @@ Start with Phase T (triage), then Phase 0: ask me your clarifying questions befo
 | Terse contract (types file + tables, no prose that repeats types) | `planner.md` |
 | Contract review before reporting: fewer agent continuations | `planner.md` |
 | Plan changes continue the same planner (small context), not a new one | brain Phase 1 |
-| Verification once: agents run `test:ci` once; brain does 3× on the first integration (1× after fixes) + image | brain Phase 3, agent prompts |
+| Verification once: agents run `test:ci` once; brain does 2× on the first integration (1× after fixes) + image | `integration.md`, agent prompts |
 | No duplicate API tests: backend writes one happy-path test per route; tester owns errors, auth and edge cases | `backend.md`, `tester.md` |
 | devops replays CI locally only when CI changes, not for every compose/env tweak | `devops.md` |
 | Per-test mocks: no post-merge mock collisions and fix rounds | `frontend.md` |
@@ -1461,7 +1482,7 @@ build discovered late, and agents waiting on things they can't fix.
 | Speed-up | Where |
 |---|---|
 | Starter repo, or a thin time-boxed skeleton; brain builds the image right after it | §2, `skeleton.md` |
-| Each stage sized ~30–45 min; a second agent only when a stage would run longer | `planner.md`, brain Phase 2 |
+| One agent per stage (max 1 backend + 1 frontend): no parallel merges or ownership splits | `planner.md`, brain Phase 2 |
 | Frontend uses the merged backend: no waiting on mocks to match reality | brain Phase 2, `frontend.md` |
 | Cross-module function signatures in tasks.md: modules don't wait on each other | `planner.md`, `backend.md` |
 | Env table with types in the contract: no backend↔compose format mismatches | `planner.md`, `backend.md`, `devops.md` |
@@ -1492,7 +1513,7 @@ build discovered late, and agents waiting on things they can't fix.
 - **Check `/cost`** after each run. Each agent's completion notice shows its tokens; if one agent
   type is always the most expensive, tighten its prompt or its model.
 - **Start small.** Try it on one small feature first; tune the agent prompts from what goes wrong.
-- **Interview / demo budget:** starter repo + MVP slice + 1 backend and 1 frontend agent + tester;
+- **Interview / demo budget:** starter repo + MVP slice + tester;
   skip `/task mobile` and `/task security` unless they're part of the demo.
 - **`maxTurns`** in the agent frontmatter is a runaway guard, not a budget: if an agent hits it
   on normal work, raise it. Remove the line if your Claude Code version rejects it.
