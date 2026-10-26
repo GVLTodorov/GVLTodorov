@@ -5,7 +5,7 @@ and hands work to **five specialist sub-agents** that work in parallel:
 
 | Agent | Responsibility | Model | Effort | Runs in parallel with |
 |---|---|---|---|---|
-| **brain** (main session) | Triages the task, asks clarifying questions, writes the spec + API contract, splits work, merges results | `opus` | high | — |
+| **brain** (main session) | Triages the task, asks clarifying questions, writes the spec + API contract, splits work, merges results | `opus` for clarify + spec, then `sonnet` | high | — |
 | `frontend` | UI, client state, API client code | `sonnet` | medium | backend, devops |
 | `backend` | API, business logic, data layer, migrations, Swagger | `sonnet` | medium | frontend, devops |
 | `devops` | Dockerfile, compose, CI/CD, versioning, coverage badges, `.vscode` | `sonnet` | medium | frontend, backend |
@@ -30,9 +30,12 @@ and hands work to **five specialist sub-agents** that work in parallel:
 - Brain: the `model: opus` line in `.claude/skills/task/SKILL.md` switches the session to Opus
   while `/task` runs. You can also just run `/model opus` before starting.
 - The brain may override a model for a single run (e.g. a light security pass on `sonnet`), as described in its Phase 4.
+- **After the spec is approved, the hard thinking is done.** Merging, running checks and routing
+  fixes don't need Opus, yet the brain is woken once per agent report and every wake re-reads the
+  whole session. Run `/compact`, then `/model sonnet`, after Phase 1. The brain reminds you.
 
 **When to change it:**
-- Tight budget → put `security` on `sonnet` too; keep the brain on `opus`.
+- Tight budget → put `security` on `sonnet` too; keep the brain on `opus` for Phase 0–1 only.
 - Hard or unfamiliar domain (complex algorithms, tricky concurrency) → raise `backend` to `opus`.
 - `haiku` only for very mechanical work: the brain's repo scan in Phase 0, or agents you might add
   later (docs, formatting). Don't use it for the five above.
@@ -47,31 +50,40 @@ and hands work to **five specialist sub-agents** that work in parallel:
                  │  T. triage: S / M / L        │    questions and spawn sub-agents
                  └──────────────┬───────────────┘
               S (small) ────────┤──────── M / L
-     brain does it alone        │ clarify → docs/spec.md + docs/api-contract.md
-     or with ONE agent          │
+     brain does it alone        │ clarify → docs/spec.md + api-contract.md + api-types.ts (Opus)
+     or with ONE agent          │ then /compact + /model sonnet
+                                ▼
+       no starter repo yet:  skeleton, 1 backend + 1 frontend     ← Phase 1b: skipped when the
+       (thin plumbing + docs/core.md) → brain merges                repo starts from a starter
             ┌───────────────────┼───────────────────┐
             ▼                   ▼                   ▼
-       frontend             backend              devops        ← Phase 2: parallel
-     (worktree)            (worktree)          (worktree)        only the agents that have work
+     frontend × 1–2       backend × 1–2       devops (only for     ← Phase 2: parallel, each agent
+     (worktree each)      (worktree each)     infra changes)         owns several modules
             └───────────────────┼───────────────────┘
                                 ▼
-                     brain merges branches
+     brain merges in waves, runs the CI commands 3× + image smoke once   ← Phase 3
                                 │
                  ┌──────────────┴──────────────┐
                  ▼                             ▼
               tester                       security            ← Phase 4: parallel
                  └──────────────┬──────────────┘                 (security only if risky files changed)
                                 ▼
-         brain: fix loop (continue same agents) → report
+   brain: fix loop → merge into local main + delete worktrees/branches → report
 ```
 
-**Two rules make parallelism work:**
+**Three rules make parallelism work:**
 
 1. **Contract first.** Frontend and backend never wait on each other because the brain
-   writes `docs/api-contract.md` (endpoints, request/response shapes, error codes) *before*
-   spawning them. Both sides build against the contract, not against each other's code.
+   writes `docs/api-contract.md` (endpoints, request/response shapes, error codes) and
+   `docs/api-types.ts` *before* spawning them. Both sides build against the contract, not
+   against each other's code.
 2. **Isolated worktrees + file ownership.** Each implementer works in its own git worktree
    and only touches its own folders. The brain is the only one who merges.
+3. **Few agents, each with real work.** Wall-clock time is set by the longest chain, but
+   **cost is set by the number of agent starts**: every spawn pays ~30–50k tokens just to read
+   `CLAUDE.md`, its prompt, the docs and the core code before writing a line. Start from a starter
+   repo (no skeleton step) and run at most **2 backend + 2 frontend** agents, each owning
+   several modules. Fifteen small agents cost far more than four larger ones and aren't much faster.
 
 > **Why the brain is the main session, not a sub-agent:** in Claude Code, sub-agents can't
 > spawn other sub-agents and can't interactively ask you questions. So the brain must be
@@ -84,13 +96,23 @@ and hands work to **five specialist sub-agents** that work in parallel:
 ```
 your-project/
 ├── CLAUDE.md                        # project facts + token rules every agent reads
+├── Dockerfile                       # ONE image: builds frontend + backend, backend serves the UI
+├── .nvmrc                           # the ONE runtime version (Dockerfile, CI, engines all follow it)
+├── frontend/                        # ┐
+├── backend/                         # │ created empty (with .gitkeep) by /task init,
+├── e2e/                             # ┘ then filled by the owning agents
+├── .github/
+│   ├── workflows/                   # CI by devops
+│   └── scripts/                     # ALL helper scripts/tools by devops (no root infra/ folder)
 ├── .vscode/                         # launch.json + tasks.json by devops: F5 runs backend + UI together
 ├── docs/
 │   ├── spec.md                      # written by brain after clarification
-│   ├── api-contract.md              # written by brain, the frontend↔backend contract
-│   └── tasks.md                     # brain's task board (who does what, status)
+│   ├── api-contract.md              # written by brain, the frontend↔backend contract (+ env table)
+│   ├── api-types.ts                 # written by brain: every contract type/enum as TypeScript
+│   ├── core.md                      # ≤60-line cheat-sheet of core helpers (starter/skeleton writes it)
+│   └── tasks.md                     # brain's task board (who does what, size, status)
 └── .claude/
-    ├── settings.json                # blocks reading generated folders (saves tokens)
+    ├── settings.json                # blocks reading generated folders, pre-allows slow build/test commands
     ├── skills/
     │   └── task/SKILL.md            # the orchestrator ("brain") → invoke with /task
     ├── agents/
@@ -108,6 +130,17 @@ your-project/
 
 Copy each block below into the matching file. Replace anything in `<angle brackets>`.
 
+> **Cheapest and fastest: keep a starter repo.** Build the plumbing once and reuse it for every
+> project. That means `/task init` plus the Phase 1b skeleton:
+> - an app that boots, with config, DB + first migration, auth middleware, error shape, test
+>   helpers, Swagger and static serving;
+> - a frontend shell with routing, the API client, i18n, the UI kit and test mocks;
+> - the Dockerfile, CI and `.vscode`, with `docs/core.md` filled in.
+>
+> Verify it once (`docker build .`, CI green, F5 works). Then every `/task` only pays for
+> features. In a measured L run, init + skeleton + image fixes were about a quarter of all
+> tokens and the whole first hour.
+
 ---
 
 ## 3. `CLAUDE.md` (shared project context)
@@ -118,9 +151,10 @@ Every agent reads this automatically, so keep it short; it is paid for on every 
 # Project: <name>
 
 ## Stack
+- Runtime:  <e.g. Node 22.12>  → single source of truth: `.nvmrc` (+ `engines` in each package.json)
 - Frontend: <e.g. React 19 + Vite + TypeScript + Tailwind>   → lives in `frontend/`
 - Backend:  <e.g. Node 22 + Fastify + PostgreSQL + Prisma>   → lives in `backend/`
-- Infra:    <e.g. Docker Compose, GitHub Actions, Traefik>   → lives in `infra/`, `.github/`
+- Infra:    <e.g. Docker Compose, GitHub Actions, Traefik>   → root `Dockerfile`/compose, `.github/` (scripts in `.github/scripts/`)
 - Tests:    <e.g. Vitest, Playwright, Supertest>             → `*/tests/`, `e2e/`
 
 ## Commands
@@ -140,18 +174,35 @@ Every agent reads this automatically, so keep it short; it is paid for on every 
 - These keys are for **local/test only**. Production secrets never go in the repo: they come from
   GitHub Actions secrets or the deployment host's environment. Code must not fall back to a test key
   in production.
-- Commit only on your own branch; never push to main.
+- Sub-agents commit only on their own branch and never touch main. Only the brain merges:
+  agent branches → integration branch, and when the work is finished, integration branch → main
+  (locally), then it deletes the merged worktrees and branches. Nobody pushes unless the user asks.
 - Use Conventional Commits (`feat:`, `fix:`, `chore:`, `feat!:` …). CI derives the image
   version from them, so the wrong prefix gives the wrong version bump.
+- **Lockfiles must install on Linux:** after changing dependencies, verify with a clean `npm ci`
+  and check new deps' `engines` against `.nvmrc`. A lockfile made on Windows/macOS can miss
+  Linux optional binaries; the Docker build is the real check.
+- **Local services: use `127.0.0.1`, not `localhost`,** in server-side connection strings and
+  proxy targets (DB, SMTP, dev-server proxy). Docker publishes ports on IPv4, and Node can
+  resolve `localhost` to `::1` (IPv6) first, especially on Windows.
+- **Clean up what you start:** stop every server/container you started before you report, so
+  ports are free for the next agent and for the user's F5.
 
 ## Token rules (every agent)
 - Read only what your task needs: your task IDs' sections of `docs/spec.md` and
   `docs/api-contract.md`, and files in your folders. Use Grep/Glob to find code, then read the
   relevant part, not whole large files.
+- Learn the shared helpers from `docs/core.md`; open core files only for something it doesn't list.
 - Never read generated folders: `node_modules`, `dist`, `build`, `coverage`, lockfiles.
 - Quiet commands: tests with `--reporter=dot` (or `--silent`), installs with `--silent`,
-  and pipe long output through `| tail -n 50`.
+  and pipe long output through `| tail -n 50`. **Exception:** never `--silent` inside a
+  Dockerfile or CI step; use `--loglevel=error` so a failure still shows its cause.
+- Slow commands (image builds, cold installs, e2e suites) can take 10+ minutes: run them in the
+  background with a long timeout instead of letting them time out and retrying.
 - While fixing, run only the affected test files. Run the full suite once, at the end.
+- Verification happens once, in one place: agents run `test:ci` once. The brain repeats it 3×
+  and builds the image at integration, and the tester checks responsive layouts. Agents don't
+  build Docker images or start browsers.
 - Read files in `.claude/templates/` only when your task creates or changes that piece.
 - Reports: **max ~150 words or one table.** No full logs: quote only the failing lines
   (max 20), and never paste whole files or diffs.
@@ -172,11 +223,26 @@ You are the **lead engineer and orchestrator**. For M/L tasks you do not write f
 yourself; you clarify, plan, delegate, integrate, and verify. You run on the most expensive
 model, so delegate reading and doing, and keep your own context small.
 
+**Cost model (read once):** you are woken once per agent report, and every wake re-reads this
+whole session; each agent start costs ~30–50k tokens of orientation. So: few agents, short
+turns, merges in waves. After the user approves the spec (end of Phase 1), tell them once:
+"Run `/compact`, then `/model sonnet`. The rest is merging and routing."
+
 ## Phase T — Triage (always first)
 Classify the request and say which size you picked and why, in one line:
-- **bootstrap** (`/task bootstrap`, or `.github/workflows/ci.yml` / `.vscode/launch.json` are
-  missing): a one-time setup run. Spawn only `devops` to create Dockerfile, compose, CI with
-  coverage badges + versioned image release, and `.vscode`. Then skip to Phase 6.
+- **init** (`/task init`, or `.github/workflows/ci.yml` / `.vscode/launch.json` are
+  missing): a one-time setup run. Skip it entirely when the repo came from a starter repo
+  (Dockerfile, CI, `.vscode` and `docs/core.md` exist). First create the empty project folders yourself
+  (`frontend/`, `backend/`, `e2e/`, `docs/`, `.github/scripts/`), each with a `.gitkeep` so git
+  keeps them. Never create a root `infra/` folder;
+  skip any that already exist and never overwrite files. Also create (if missing) a root
+  `.gitattributes` with `*.sh text eol=lf` (shell scripts run in Linux containers) and a root
+  `.gitignore` with `node_modules/`, `dist/`, `coverage/`, `test-results/`, `.claude/worktrees/`,
+  `backups/`. **Remote check:** if `origin` is set but has no `main` (`git ls-remote --heads origin main`
+  is empty), tell the user to push `main` first (it becomes the GitHub default branch); never
+  push a feature/integration branch to an empty remote. Run the **port preflight** (below) and give devops the ports. Then spawn only `devops` to create the
+  single-image Dockerfile, compose, CI with coverage badges + versioned image release, and
+  `.vscode`. Then skip to Phase 6.
 - **S (small)**: a bug fix or small change in ≤ ~3 files in one area. **No team.** Skip
   the spec/contract docs. Do it yourself, or spawn the ONE owning agent with a short prompt. Run
   the affected tests, then go to Phase 6.
@@ -185,12 +251,22 @@ Classify the request and say which size you picked and why, in one line:
 - **L (large)**: a new feature across frontend + backend. Run all phases.
 Never spawn `devops` for a feature unless it changes Docker, compose, CI, env files or `.vscode`.
 
+**Port preflight (init, M, L):** check that the project's DB / SMTP / mail UI / app ports are
+free (`docker ps --format '{{.Names}} {{.Ports}}'`). Other projects on the same machine often hold
+5432/1025/8025. If they are taken, pick project-specific dev defaults (e.g. 5442/1035/8035) and
+make devops write them to the committed compose env file. For M/L, start ONE shared DB + mail
+container for all agents before Phase 1b (`docker compose … up -d --wait <db> <mail>`); agents'
+tests use isolated schemas on it and never stop it.
+
 ## Phase 0 — Clarify (M/L)
-1. Read `CLAUDE.md`. To learn what exists, spawn the built-in `Explore` agent with
-   `model: "haiku"` and ask for a ≤150-word summary of the relevant code. Don't skim the
-   repo yourself.
-2. Ask the user **at most 5 focused questions** in one AskUserQuestion call, covering
-   only what you can't infer:
+1. Read `CLAUDE.md` and `docs/core.md` (if present). If the repo has feature code, spawn the
+   built-in `Explore` agent with `model: "haiku"` for a ≤150-word summary of the relevant code.
+   Don't skim the repo yourself.
+   **Scope first:** for an L request, recommend an MVP slice (the 2–3 flows that prove the product)
+   as the default option; the rest becomes later `/task` runs. Scope is the biggest cost lever.
+2. Ask the user **at most 4 focused questions** in one AskUserQuestion call (the tool's
+   limit), covering only what you can't infer; bundle related open points into one question
+   with "Use defaults (Recommended)" as the first option:
    - Goal & users: what problem, who uses it, what does "done" look like?
    - Scope: must-have vs. nice-to-have; explicitly out of scope?
    - Data: what entities/fields; any existing DB/API to integrate with?
@@ -205,18 +281,71 @@ Write these files, then show the user a short summary:
   out-of-scope list. Use one heading per area so agents can read only their section.
   If there is a UI, always include a responsive criterion: usable at 360px / 768px / 1280px
   with no horizontal page scroll.
-- `docs/api-contract.md` — every endpoint: method, path, auth, request schema, response
-  schema, error codes, example payloads. Include shared types/enums.
-- `docs/tasks.md` — task table: `ID | Agent | Task | Files owned | Depends on | Status`.
+- `docs/api-contract.md` — **terse:** one table per area: method, path, roles, request/response
+  type names from `api-types.ts`, error codes. Add only the rules types can't express (state
+  transitions, permissions, idempotency). Don't repeat type fields in prose; give an example only
+  where a payload is tricky. Every line here is Opus output that every agent then reads. End it
+  with an **env table** `NAME | type | example | required in prod`: every env var the app reads, with its
+  exact format (e.g. `TRUST_PROXY | int hop count, or true/false`). Backend and devops both
+  follow it; nobody invents a format.
+- `docs/api-types.ts` — every request/response type and enum of the contract as TypeScript.
+  Frontend imports it (path alias or copy); backend uses it for route typings. It is part of the
+  contract (same approval rule). Writing it once here saves each side from re-typing the contract.
+- `docs/tasks.md` — task table: `ID | Agent | Task | Files owned | Depends on | Est. min | Status`.
   Each file/folder is owned by exactly ONE agent. No overlaps.
+  - **Size by agent, not by endpoint:** at most **2 backend + 2 frontend** agents in Phase 2
+    (often 1 + 1 for M). Each owns several module folders, ~30–45 min of work. Split further only
+    when one agent's work would exceed ~45 min; balance so none is more than ~1.5× the median
+    `Est. min`. Modules stay separate folders (ownership), even when one agent owns several.
+  - Features (auth, admin, CRUD screens…) are module tasks, **never** part of the skeleton.
+  - **Cross-module functions:** when one module calls another (e.g. charges needs
+    `isMonthLocked()` from ledger), list the exact signature in a "Cross-module functions"
+    section of tasks.md with its owner. The owner implements it; callers code against it (stub or
+    mock in their tests) and never edit the owner's folder.
+  - One folder per module: `backend/src/modules/<module>/`, `backend/tests/<module>/`,
+    `frontend/src/features/<module>/` — that's what makes ownership non-overlapping.
+- **Contract review before spawning (2 min, saves whole fix rounds):** for every screen in the
+  spec, name the endpoint(s) it calls and check in the permission matrix that the screen's role
+  may call them (e.g. "front desk picks an assignee → who may list mechanics?"). For
+  customer-facing pages, check that every field they display is in the response type. A gap
+  found later means continuing an agent, which reloads its 100k+ history.
+
+## Phase 1b — Skeleton (only when no starter repo provides the plumbing)
+Commit the docs on the integration branch first (worktrees branch from HEAD). Then spawn ONE
+`backend` and ONE `frontend` agent (same message, worktrees), time box ~10–15 min each, **plumbing
+only, no features**. Keep it thin: it blocks everything else, and an overloaded skeleton
+(workers, rate limits, uploads, mail) easily takes 45 min. Feature-like helpers belong to the
+module that needs them.
+- backend: package.json, app bootstrap, config (from the env table; empty env vars count as
+  unset), error shape, the **full DB schema** + first migration + dev seed, auth *middleware* and
+  role helpers (not the auth endpoints), test helpers (isolated schema), Swagger, static serving +
+  SPA fallback, `/health`, and **one empty plugin per backend module in tasks.md, already
+  registered** under its route prefix, with the cross-module function stubs.
+- frontend: Vite/Tailwind/i18n/router/layout, `request()` client using `docs/api-types.ts`, UI kit,
+  MSW setup, and **one empty feature folder per frontend module in tasks.md** (routes, nav,
+  i18n namespace, mocks), already wired in through an explicit registry file.
+- both: append your part to `docs/core.md` (≤30 lines each: helper names, import paths, test
+  helpers, how tests install mocks/handlers). Module agents read this instead of exploring core.
+Done means: lint/build/tests pass, the server starts and serves a dummy UI (backend), committed.
+Merge both, then **run `docker build .` yourself** (in the background) before Phase 2: image bugs
+(missing files in the build context, env parsing) are cheapest to fix while nothing else runs.
 
 ## Phase 2 — Parallel build
-Spawn **only the agents with tasks**, **in the same message** so they run in parallel,
-each with `isolation: "worktree"`. Keep every prompt short (≤ ~200 words) and self-contained:
+Spawn **one agent per task** (from tasks.md), **in the same message** so they run in
+parallel, each with `isolation: "worktree"`. Cap: 2 backend + 2 frontend (+ devops only for infra
+changes); each owns only its module folders.
+- **Start early, merge in waves:** start each task as soon as ITS dependencies are merged
+  (frontend needs only the frontend plumbing; mocks cover the API). When reports come in, merge
+  every finished branch in **one** turn (`git merge <b1> <b2> …`) instead of one turn per report.
+  Reply to a report only when it needs action.
+- Every prompt starts with "run `git merge <integration-branch>` in your worktree first".
+Keep every prompt short (≤ ~200 words) and self-contained:
 - The task IDs it owns, the exact folders it may edit, and the acceptance-criteria IDs it covers.
 - Which sections of `docs/spec.md` / `docs/api-contract.md` to read (by heading). Point to
   files; don't paste their content.
-- "Done means": builds, lints, its own unit tests pass, branch committed.
+- "Done means": builds, lints, its own tests pass (`test:ci` once; no Docker builds, no
+  browsers), branch committed.
+- If it may start a dev server: a unique port per agent (e.g. 5201, 5202…).
 - "Report back in ≤150 words: branch, files changed, check results (pass/fail + failing lines
   only), open questions, any contract change you need (do NOT make it yourself)."
 Record each agent's **name/ID** so you can continue it later (Phase 5).
@@ -225,12 +354,23 @@ Record each agent's **name/ID** so you can continue it later (Phase 5).
 1. Review each report. If an agent requests a contract change, decide, update
    `docs/api-contract.md`, and continue the affected agents.
 2. Merge the branches into an integration branch; resolve conflicts yourself.
-3. Run build + lint + tests with quiet output (`| tail -n 50`). If broken, send the failing
-   lines to the owning agent.
+3. Run build + lint + tests **with the same commands CI runs** (clean `npm ci`, `npm run lint`,
+   `npm run test:ci`; read them from the CI file, not from memory) with quiet output
+   (`| tail -n 50`). Run `test:ci` **3× here** (agents ran it once) to catch flaky tests.
+   If broken, send the failing lines to the owning agent.
+4. **Image smoke (before Phase 4, every time deps, Dockerfile or compose changed):** build and
+   start the app image the way CI does (e.g. `docker compose … up -d --build --wait`, in the
+   background with a long timeout), then hit the health endpoint and `/`. If it fails, send
+   the failing build lines to the owner of that stage (devops for Dockerfile/compose,
+   frontend/backend for their lockfile/deps) and fix it **before** spawning the tester.
+   A broken image found during e2e costs the most time of anything in this workflow.
+5. Leave the stack running for Phase 4 and note its URLs (app, mail sink, etc.).
 
 ## Phase 4 — Verify (parallel)
 Spawn in the same message, against the integration branch:
-- `tester`: always for M/L.
+- `tester`: always for M/L. Its prompt must give the running stack's URLs (e.g. `BASE_URL`)
+  and say: "Don't build or start the app yourself; if it isn't reachable, report that at once."
+  Give it a time box: one full run, then `--last-failed`, at most 2 reruns, then report.
 - `security`, depending on what the diff touches:
   - auth, sessions, user data access, input handling, dependencies, Dockerfile/CI or `.env*`:
     full review on its default model (`opus`).
@@ -238,35 +378,98 @@ Spawn in the same message, against the integration branch:
     `model: "sonnet"`, limited to the changed files, or skip it and say so in the report.
 
 ## Phase 5 — Fix loop
-- Route each failed test / finding to the owning agent by **continuing that same agent with
-  SendMessage** (it keeps its context and doesn't re-read the repo). Spawn a new agent only
-  if the original can't be continued.
+- Route each failed test / finding to the owning agent. **Continue that same agent with
+  SendMessage** when its last run was small (< ~150k tokens) or the fix needs its memory; a
+  continued agent reloads its whole history, so a big one costs 250k+ tokens even for a 20-call
+  fix. Otherwise spawn a **fresh agent of the same type** with only the evidence and file paths.
+- Trivial integration glue (≤ ~5 lines: a config parse, an env name, a path) the brain may fix
+  itself, then rerun the affected checks. Anything bigger goes to the owner.
 - Send only the exact evidence (failing test name + ≤20 lines). Tell it to rerun only the
   affected tests.
 - Max **2 fix rounds**; after that, stop and ask the user how to proceed.
 - Security findings rated High/Critical block completion. Medium/Low → list them for the user.
+- Batch: collect tester + security results first, then send each owner ONE message with all its
+  items, so a round isn't spent per finding.
+- After a fix merges, **restart/rebuild the running stack before re-testing**; testing against
+  a stale build produces false failures.
 
-## Phase 6 — Report
-Give the user, briefly: what was built (mapped to acceptance criteria ✅/❌), test results,
-security summary, how to run it, open risks/TODOs. Do not commit to main or push unless
-the user explicitly asks.
+## Phase 6 — Merge, clean up, report
+**Merge to main and clean up (always, when the work is finished):** "finished" means build +
+lint + all tests pass (and e2e for M/L) and there are no open High/Critical security findings.
+Otherwise skip this step, keep the branches, and say why in the report.
+1. Commit any remaining brain changes (docs, glue fixes) on the integration branch.
+2. `git checkout main` → `git merge --ff-only <integration-branch>` (use `--no-ff` only if main
+   moved meanwhile; resolve conflicts, rerun the tests). For S tasks done directly on a
+   branch, merge that branch the same way.
+3. Remove every agent worktree and branch of this run, but only once each is merged into main:
+   `git worktree remove <path>` for each `.claude/worktrees/agent-*`, `git worktree prune`, then
+   `git branch -d worktree-agent-*` and `git branch -d <integration-branch>`. Use `-d` (never
+   `-D`): git refuses unmerged branches, so a refusal means something wasn't merged; report it.
+   A worktree with uncommitted changes is not removed; report it.
+4. Check: `git branch` shows only `main` (plus branches the user had before), and
+   `git worktree list` shows only the main checkout.
+5. **Check the remote** (read-only) when `origin` exists: `git fetch --prune`, then
+   `git ls-remote --heads origin` and `git branch -vv`. Report to the user:
+   - local `main` ahead of `origin/main` → "push `main`" (with the commit count);
+   - `origin/main` missing or `[gone]` → **main was never pushed**: tell the user to push `main`
+     *before any other branch* and make it the default (`gh repo view --json defaultBranchRef`);
+   - integration/agent branches on the remote (someone pushed them, e.g. VS Code "Commit & Push")
+     → they are merged into main, so the user may delete them on GitHub.
+6. **Check the real CI** whenever `main` was pushed (by the user, or by you when asked): watch the
+   run with the provider's CLI (`gh run watch --exit-status`, `glab ci status --live`…). If a job
+   fails, fetch only the failing lines (`gh run view <id> --log-failed | tail -n 40`), route them
+   to the owner (devops for the CI file, backend/frontend for their scripts/deps) and repeat until
+   green. Report the CI result; "pushed" is not "done" while CI is red. **One push at a time:**
+   batch all fixes into one push and wait until the run on main finishes before pushing again;
+   overlapping runs race on the badges branch and the release tag.
 
 ## Rules
 - Never let two agents edit the same file.
 - Never invent requirements — if unsure, ask.
 - Keep sub-agent prompts self-contained: they don't see this conversation.
-- Prefer fewer agents. Each spawn starts cold and re-reads files.
+- Prefer fewer agents at every size: each spawn starts cold and re-reads ~30–50k tokens, and
+  each report wakes you. More agents only pay off when one task would exceed ~45 min.
+- Keep your own turns short: read agent reports, never their transcripts; don't restate reports
+  to the user, just summarize what changed.
+- Background agents can't answer permission prompts; a blocked command looks like a hang.
+  Long-running commands they need must be allowed in `.claude/settings.json`.
+- Agents running in parallel must not share mutable test state (same test DB, same port).
+  If two agents' tests run at once, failures like deadlocks or 401s are noise; rerun before routing.
 ```
 
 ---
 
-## 5. `.claude/settings.json` (block token-wasting reads)
+## 5. `.claude/settings.json` (block token-wasting reads, pre-allow slow commands)
 
-Stops every agent from opening or searching generated folders:
+`deny` stops every agent from opening or searching generated folders. `allow` pre-approves the
+long build/test commands: sub-agents run in the background and **can't answer a permission
+prompt**, so an un-allowed `docker build` or e2e run just stalls (and a stalled agent keeps
+its context open while you wait). Adjust the list to your stack; on Windows add the same
+entries as `PowerShell(...)`.
 
 ```json
 {
   "permissions": {
+    "allow": [
+      "Bash(npm ci:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(npx playwright:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git merge:*)",
+      "Bash(docker build:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker ps:*)",
+      "Bash(curl:*)"
+    ],
     "deny": [
       "Read(./**/node_modules/**)",
       "Read(./**/dist/**)",
@@ -297,15 +500,23 @@ effort: medium
 
 You are a senior frontend engineer. Follow the token rules in `CLAUDE.md`.
 
-**Before coding:** read your task IDs in `docs/tasks.md` and only the sections of
-`docs/spec.md` / `docs/api-contract.md` the brain named.
+**Before coding:** read your task IDs in `docs/tasks.md`, `docs/core.md` (core APIs: don't
+explore core code), and only the sections of `docs/spec.md` / `docs/api-contract.md` the brain named.
 
 **You may edit only:** `frontend/**` (and anything else explicitly assigned to you).
 
 **How to work**
 - Build against the contract. Until the backend is merged, mock the API with the contract's
   example payloads (e.g. MSW or a fixtures file) — never wait on the backend.
-- Generate/define API types from the contract; one typed API client module, no ad-hoc fetches.
+- Use the API types from `docs/api-types.ts` (path alias or copy; don't re-type the contract);
+  one typed API client module, no ad-hoc fetches.
+- **Feature folders:** each module lives in `src/features/<module>/` (pages, `routes.tsx`,
+  `nav.ts`, i18n namespace, mocks, tests) and is wired in through an **explicit registry file**
+  (`src/features/index.ts` importing each feature), not `import.meta.glob`: Vitest caches glob
+  results, so feature files added later are silently missed. Edit only your own feature folder.
+- **Mocks are per test:** feature tests install their own handlers with `server.use(...)` in
+  `beforeEach`. Never rely on the global handler list: other features mock the same URLs, and
+  after the merge the first match wins, so tests that passed alone fail on the integration branch.
 - Handle loading, empty, and error states for every screen. Accessible markup (labels, roles, keyboard).
 - **Responsive, mobile-first:** every screen works on mobile, tablet and desktop. Base styles
   target ~360px, then `min-width` breakpoints (e.g. 640 / 1024px). Fluid layouts (flex/grid,
@@ -314,13 +525,28 @@ You are a senior frontend engineer. Follow the token rules in `CLAUDE.md`.
   become cards or scroll inside their own container; media scales (`max-width: 100%`).
 - Follow existing components/styles; don't add a UI library without being told.
 - Write unit/component tests for logic and key components.
+- Dev-server proxy targets use `127.0.0.1` (e.g. `'/api': 'http://127.0.0.1:<PORT>'`), not `localhost`.
+- New dependencies must support the runtime in `.nvmrc` (check their `engines`; bundlers with
+  native bindings often need a newer minor). Don't downgrade a tool to dodge an old runtime pin:
+  report it so devops bumps the runtime.
 
-**Done means:** `lint`, `typecheck`, `build`, and your tests pass; every new/changed screen
-checked at 360px, 768px and 1280px widths; work committed on your branch.
+**CI script:** keep a `test:ci` package script — the exact command CI runs (e.g. tests + coverage
+reporters) — and the dev-deps it needs (e.g. `@vitest/coverage-v8` at the same version as
+`vitest`). Run `npm run test:ci`, not just `npm test`, once before reporting (the brain repeats it
+3× at integration). Coverage instrumentation and parallel workers make tests slower, and a test
+that fails only sometimes is a timing bug. Fix it properly (await the element you need, e.g. the
+`<option>` before `selectOptions`; realistic limits in the test config such as `testTimeout: 20000`
+and Testing Library `asyncUtilTimeout: 5000`, and toast/timer durations that aren't tiny), never
+with retries.
+
+**Done means:** `lint`, `typecheck`, `build`, and `npm run test:ci` pass; if you changed dependencies,
+a clean `npm ci` works and you say so in the report (the brain builds the image); every new screen
+follows the mobile-first rules above (the tester's responsive spec verifies 360/768/1280px once;
+don't start browsers yourself); work committed on your branch.
 
 **Report back (≤150 words):** branch, files changed, check results (failing lines only),
-responsive check (widths verified, any known issues), acceptance criteria covered, open questions,
-contract changes you need (describe — do not edit the contract).
+acceptance criteria covered, open questions, contract changes you need (describe — do not edit
+the contract). If a needed field/endpoint is missing, continue with the most likely shape and say so.
 ```
 
 ### `backend.md`
@@ -336,8 +562,8 @@ effort: medium
 
 You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.md`.
 
-**Before coding:** read your task IDs in `docs/tasks.md` and only the sections of
-`docs/spec.md` / `docs/api-contract.md` the brain named.
+**Before coding:** read your task IDs in `docs/tasks.md`, `docs/core.md` (core helpers: don't
+explore core code), and only the sections of `docs/spec.md` / `docs/api-contract.md` the brain named.
 
 **You may edit only:** `backend/**` (and anything else explicitly assigned to you).
 
@@ -346,12 +572,38 @@ You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.m
 - Validate all input at the boundary (schema validation); never trust the client.
 - Parameterized queries / ORM only. AuthN/AuthZ checks on every protected route.
 - Migrations are forward-only and reversible where possible; include seed data for dev.
-- Config via env vars. Add every new key with a working local/test value to the committed
+- Config via env vars, exactly as typed in the contract's env table (report a missing var; don't
+  invent its format). Empty values count as unset: compose passes optional vars as `${VAR:-}`,
+  and a URL check on `""` stops the container from starting.
+- From `docs/api-types.ts` use `import type` only: the server bundle and the Docker backend stage
+  must not depend on `docs/` at runtime. Redefine runtime values (e.g. status lists) locally. Add every new key with a working local/test value to the committed
   `backend/.env.development` and `backend/.env.test` (with a comment saying what it is).
+- **Modules:** each module is one plugin in `src/modules/<module>/` with tests in
+  `tests/<module>/`, registered by the skeleton. Edit only your module's folders; call other
+  modules only through the "Cross-module functions" listed in `docs/tasks.md`.
 - Structured logging; no secrets or PII in logs.
 - On startup log exactly `Listening on http://localhost:<PORT>`. The VS Code launch config
   watches for this line to open Swagger.
+- The app ships as **one Docker image**: in production the backend also serves the built
+  frontend (static files from a configurable dir, e.g. `STATIC_DIR`, with SPA fallback to
+  `index.html` for non-API routes). Keep API routes under a prefix (e.g. `/api`) so they never
+  clash with UI routes.
 - Write unit tests for logic and integration tests per endpoint (happy path + main errors).
+- **Isolated test DB per run:** test setup creates its own database or schema (e.g.
+  `?schema=test_<pid|worker-id>`), migrates it, and drops it after. Never share one fixed test DB:
+  parallel agents/workers then deadlock or wipe each other's data. Route tests use `app.inject`
+  and never bind a port (other agents run at the same time).
+- **Make time testable:** background workers, schedulers and delays read their interval from env
+  (fast values in `.env.test`, e.g. a mail worker every 500 ms, and in the compose dev/e2e env
+  file, e.g. 1000 ms — e2e runs the production image, where test hooks don't exist, so a 10 s
+  default slows every email-based e2e test). Behind `NODE_ENV=test` only, expose
+  test hooks so e2e never waits on the wall clock: e.g. `POST /api/test/jobs/:name/run` to trigger
+  a scheduled job now, and a clock override. List them in the contract under "Test-only"; they
+  must not exist in production builds.
+- Bind dev/test servers to `127.0.0.1`, and use `127.0.0.1` in local DB/SMTP URLs.
+- Don't put codegen that needs source files (ORM client generation etc.) only in `postinstall`:
+  in the Dockerfile, `npm ci` runs before the source is copied. Run it in the `build` script, or
+  tell devops which files must be copied before install.
 
 **Swagger / OpenAPI (required)**
 - Serve an OpenAPI 3 spec that matches `docs/api-contract.md` (every endpoint, schema, error
@@ -369,8 +621,20 @@ You are a senior backend engineer (Node.js). Follow the token rules in `CLAUDE.m
 - Integration test: `GET /swagger.json` returns 200 with every contract path, and `/swagger`
   HTML contains the `app-links` style.
 
-**Done means:** lint, build, and tests pass; the server starts; `/swagger` loads with the top-bar
-buttons; work committed on your branch.
+**CI script:** keep a `test:ci` package script — the exact command CI runs (e.g. tests + coverage
+reporters) — and the dev-deps it needs (e.g. `@vitest/coverage-v8` at the same version as
+`vitest`). Your committed `.env.test` ports are what CI's services publish; tell devops if you
+change them. Run `npm run test:ci`, not just `npm test`, once before reporting (the brain repeats
+it 3× at integration). A test that fails only sometimes is a timing bug: fix it properly (await
+what you need, realistic `testTimeout`), never with retries.
+
+**Done means:** lint, build, and `npm run test:ci` pass; if you changed dependencies, a clean
+`npm ci` works and you say so in the report (the brain builds the image); work committed on your
+branch. **Skeleton/starter only:** the built server (`node dist/<entry>.js`) starts with
+`STATIC_DIR` pointing to a temp folder holding an `index.html` + `assets/x.js`, and `/`, an SPA
+route, `/health` and `/api/unknown` (JSON 404) all answer (an integration test for this is
+required); `/swagger` loads with the top-bar buttons (check the served theme files, not just the
+HTML: Swagger UI puts custom CSS/JS in separate files).
 
 **Report back (≤150 words):** branch, endpoints implemented, files changed, check results
 (failing lines only), new env vars, open questions, contract changes you need (describe — do not edit the contract).
@@ -381,7 +645,7 @@ buttons; work committed on your branch.
 ````markdown
 ---
 name: devops
-description: DevOps engineer. Owns Dockerfiles, docker-compose, CI/CD pipelines (coverage badges, versioned image release), environment configuration and the .vscode run setup. Use for /task bootstrap or when the brain assigns infra/build/deploy tasks.
+description: DevOps engineer. Owns the single-image Dockerfile, docker-compose, CI/CD pipelines (coverage badges, versioned image release), environment configuration and the .vscode run setup. Use for /task init or when the brain assigns infra/build/deploy tasks.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
 effort: medium
@@ -392,21 +656,68 @@ You are a senior DevOps engineer. Follow the token rules in `CLAUDE.md`.
 **Before working:** read your task IDs in `docs/tasks.md` (if present) and `CLAUDE.md`.
 Read a file from `.claude/templates/` only when you create or change that piece.
 
-**You may edit only:** `infra/**`, `.github/**`, `Dockerfile*`, `docker-compose*.yml`,
+**Helper scripts and tools go in `.github/`, never in a root `infra/` folder.** Workflows in
+`.github/workflows/`, every helper script (build, release, badge generation, DB backup, setup…)
+in `.github/scripts/`, called from CI by that path. Don't create `infra/`, `scripts/` or `tools/`
+at the repo root.
+
+**You may edit only:** `.github/**`, `Dockerfile*`, `docker-compose*.yml`,
 `.dockerignore`, root-level `.env.*` files (backend/frontend own their own `.env.development` / `.env.test`),
 `.vscode/**`, and the coverage section of the root `README.md`.
 
 **How to work**
-- Multi-stage Dockerfiles, pinned base image versions, non-root user, minimal final image,
-  `HEALTHCHECK`, `.dockerignore`.
-- Compose: one service per component, named network, healthchecks + `depends_on: condition: service_healthy`,
+- **Single Docker image** for the whole app: one root `Dockerfile`, multi-stage — a stage
+  builds the frontend, a stage builds the backend, and the final stage contains the backend
+  runtime plus the frontend's static build (served by the backend). No separate frontend image.
+- Pinned base image versions, non-root user, minimal final image, `HEALTHCHECK`, `.dockerignore`.
+- **One runtime version:** create `.nvmrc` (and `engines` in each package.json). The Dockerfile
+  takes it as `ARG NODE_VERSION=<same>`; CI uses `node-version-file: .nvmrc`. Pick the current LTS
+  minor, not an old patch: modern tooling with native bindings needs recent minors.
+- **Fast, debuggable installs in the Dockerfile** (a cold `npm ci` can take 15+ min on a slow network):
+  ```dockerfile
+  # syntax=docker/dockerfile:1.7
+  COPY <app>/package.json <app>/package-lock.json ./
+  COPY <files install scripts need, e.g. ORM schema> ./<path>/
+  RUN --mount=type=cache,target=/root/.npm \
+      npm ci --prefer-offline --no-audit --no-fund --loglevel=error
+  COPY <app>/ ./
+  ```
+  Never `--silent` here (it hides why a step died). Copy anything a `postinstall` hook needs
+  *before* `npm ci`.
+- Compose: one service for the app image, plus separate services only for third-party
+  dependencies (database, cache…); named network, healthchecks + `depends_on: condition: service_healthy`,
   volumes for persistent data. The dev compose file may read the committed
   `.env.development` files; production values come from CI/host secrets, never from the repo.
+  - Production secrets in compose use `${VAR:?message}` (fail loudly), never `${VAR:-dev-value}`.
+    Put dev values in a committed `--env-file` used only for local/CI runs.
+  - Publish third-party ports on `127.0.0.1` only. Dev-only tools (mail sink, admin UIs) go behind
+    a `dev` profile; a `depends_on` entry on them needs `required: false`.
+  - The test database is created automatically (e.g. an init script in
+    `/docker-entrypoint-initdb.d`), with the same credentials as the committed `.env.test` and CI.
+  - **e2e gets its own stack:** a separate compose project name and app port (e.g.
+    `docker compose -p <app>-e2e …`, app on a port other than F5's), so e2e and F5 debugging can
+    run at the same time.
 - Keep the committed `.env.development` / `.env.test` files out of the production image
   (`.dockerignore`), but don't gitignore them.
+- **Shared contract types in the image:** frontend and backend import `docs/api-types.ts` (alias
+  to `../docs/api-types.ts`). `.dockerignore` must let it through (`docs/*` + `!docs/api-types.ts`),
+  and each build stage copies it so the alias resolves (e.g. `COPY docs/api-types.ts /docs/`
+  when the stage's WORKDIR is `/build`). Without this, the first real image build fails.
+- Optional vars in compose are `${VAR:-}` (empty string). The app must treat empty as unset; check
+  that the app container actually becomes healthy (`up --wait`), not only that the image builds.
 - CI tests use the committed `.env.test`, with no extra GitHub secrets needed to run tests.
-- CI pipeline: install → lint → test → build image → (optional) scan image. Cache dependencies.
+- CI pipeline: install → lint → test → build image → (optional) scan image. Cache dependencies
+  (`actions/setup-node` `cache: npm`), cache image layers (`cache-from: type=gha`,
+  `cache-to: type=gha,mode=max`), and **build the image once**: e2e runs against that image, it
+  doesn't rebuild. Install only the Playwright browsers you test (`npx playwright install chromium --with-deps`)
+  and cache `~/.cache/ms-playwright`.
+- Least privilege: jobs that run PR code get `contents: read`; only main-only jobs (badges, release) get write.
 - Do not deploy anything or touch real servers/cloud resources unless explicitly told.
+- **Dev ports:** use the project-specific ports the brain gives from its port preflight as the
+  defaults in the committed compose env file and `.vscode`. Never stop or recreate a stack you
+  didn't start; validate with your own `COMPOSE_PROJECT_NAME`.
+- Every env var you pass to the app follows the contract's env table (name, type, format).
+- Shell scripts the containers run keep LF endings (`.gitattributes`: `*.sh text eol=lf`).
 
 **CI: coverage badges + Docker image release (required) → template `.claude/templates/ci.yml`**
 - Coverage: test runners output line + branch coverage. On `main`, CI generates
@@ -416,7 +727,8 @@ Read a file from `.claude/templates/` only when you create or change that piece.
   and only after tests pass. Version from Conventional Commits via
   `mathieudutour/github-tag-action` (git tag `vX.Y.Z`); **the first version is always `0.0.1`**.
   Push `ghcr.io/<owner>/<repo>:<X.Y.Z>` (no `v`) + `latest` using `GITHUB_TOKEN` (no PATs).
-- Separate frontend/backend images: one matrix entry per image, all with the **same** version.
+- One image only (`ghcr.io/<owner>/<repo>`), built from the root `Dockerfile`; no matrix of
+  per-component images.
 - Add/update this table in the root `README.md`, replacing `<owner>/<repo>` (one row per project):
 
   ```
@@ -429,12 +741,52 @@ Read a file from `.claude/templates/` only when you create or change that piece.
 **VS Code: run backend + frontend together (required) → templates `.claude/templates/vscode-*.jsonc`**
 - F5 with **"Backend + UI"** starts both under the debugger, opens `/swagger` in the normal
   browser, and stops both together (hidden configs + a compound with `stopAll: true`).
-- `tasks.json`: `backend: install` / `frontend: install`. `extensions.json`: ESLint, Prettier,
+- `tasks.json`: `backend: install` / `frontend: install`, plus `infra: up` (starts only the
+  third-party services, e.g. DB and mail sink, with `--wait`) and `infra: stop`. `infra: up` is the
+  backend config's `preLaunchTask`, so F5 works on a fresh machine. `extensions.json`: ESLint, Prettier,
   the test runner's extension. Adjust paths/ports to the real project.
 
-**Done means:** `docker compose config` validates, images build, CI file passes a syntax check,
-the coverage job, README table, versioned image release job and `.vscode` configs are in place;
-committed on your branch.
+**CI must be verified, not just written (any CI system: GitHub Actions, GitLab CI, Azure, Jenkins…)**
+- **CI calls scripts, never inline tool flags.** Every CI step runs a named script that also
+  exists locally: package scripts (`npm run lint`, `npm run build`, `npm run test:ci`) or
+  `.github/scripts/ci-<job>.sh`. The app owners (backend/frontend) own their package scripts and
+  the dev-deps those scripts need (e.g. a coverage provider); if CI needs a script that doesn't
+  exist, ask the brain to have the owner add it. That way "works locally" means "works in CI".
+- **Call scripts through their interpreter:** `bash .github/scripts/x.sh`, `node .github/scripts/x.mjs`,
+  never `./x.sh` or a bare path. Windows has no executable bit, so a script created there is
+  committed as `100644` and the Linux runner answers "Permission denied" (exit 126). Also mark
+  shell scripts executable in git (`git update-index --chmod=+x <file>`, check with
+  `git ls-files -s`) for people who run them directly.
+- **CI services match the committed env files:** a DB/SMTP service in CI is published on the same
+  host port and credentials as the committed `.env.test` (e.g. `5442:5432` when `.env.test` says 5442).
+- **Replay every job locally, exactly as written,** before reporting: a clean install from the
+  lockfile, the same commands, flags, env vars and ports, and the same image tag and compose project
+  for e2e (e.g. `COMPOSE_PROJECT_NAME=<app>-e2e APP_PORT=… docker compose … up -d --wait --no-build`
+  then the e2e command, then `down -v`). Use the provider's local runner if available (`act` for
+  GitHub Actions, `gitlab-ci-local`), otherwise run the job's script. Check the stack actually
+  started (`up --wait` exit code) before reading test results: if it didn't, the replay didn't run.
+  If a CI port can't be bound locally (Windows reserves ranges, see
+  `netsh interface ipv4 show excludedportrange protocol=tcp`), change only that port locally and
+  say so in the report. Jobs that only run on the
+  main branch (badges, release) are replayed too, because nothing else runs them before main:
+  run their scripts in a throwaway clone whose `origin` is a local bare repo
+  (`git clone --no-local . /tmp/r && git init --bare /tmp/o.git && git -C /tmp/r remote set-url origin /tmp/o.git`),
+  so git pushes land there; compute the version and `docker build` with the release tags — never
+  publish to the real remote or registry.
+- **Lint the CI file** with the provider's linter (`actionlint`, `gitlab-ci-lint`…; if it isn't
+  installed, run its container, e.g. `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7`)
+  and check every third-party action/image reference exists (pinned SHA/tag resolves).
+- **Release only the tip of main:** a `release-check` job (after tests) compares `$GITHUB_SHA` with
+  the current tip of main (`gh api repos/<owner>/<repo>/commits/main --jq .sha`), and the release
+  job runs only when they match. Otherwise two quick pushes make the older run tag an outdated
+  commit, and GitHub refuses that ("Resource not accessible by integration") when its workflow
+  files differ from main, since `GITHUB_TOKEN` can't have the `workflows` permission.
+
+**Done means:** `docker compose config` validates, the single app image **actually builds** (run
+`docker build .` in the background with a long timeout, and don't report "unverified") and serves
+both `/swagger` and the UI, the CI file passes its linter, **every CI job was replayed locally and
+passed** (report a table `job | command | result`), the coverage job, README table, versioned
+image release job and `.vscode` configs are in place; committed on your branch.
 
 **Report back (≤150 words):** branch, files changed, how to run locally, required env vars/secrets,
 check results (failing lines only), open questions.
@@ -459,18 +811,37 @@ contract sections for the endpoints under test.
 **You may edit only:** `e2e/**`, `tests/**` and test files (`*.test.*`, `*.spec.*`).
 **Never modify application code** to make a test pass — report the bug instead.
 
-**How to work**
+**The app is already running.** The brain gives you its URLs (e.g. `BASE_URL`). Don't build
+images or start/stop servers yourself. If the app isn't reachable, report that immediately;
+don't try to fix or rebuild it.
+
+**How to work: test pyramid, fast first**
 - One or more tests per acceptance criterion; name tests after the criterion ID.
-- API tests: every endpoint's success path, validation errors, auth failures, edge cases
-  (empty, max length, unicode, pagination bounds).
-- E2E: the main user journeys end-to-end through the UI, on a desktop viewport and a mobile
-  viewport (e.g. Playwright `devices['iPhone 13']`). On mobile, also assert there is no
-  horizontal scroll (`scrollWidth <= clientWidth`).
-- Tests must be deterministic: no sleeps, seeded data, isolated state.
-- Run the full suite once with a quiet reporter. In fix rounds, rerun only the affected tests.
+- **Most criteria are covered at API level** (Playwright `request` or HTTP client): every
+  endpoint's success path, validation errors, auth failures, edge cases (empty, max length,
+  unicode, pagination bounds). These are fast and parallel.
+- **UI e2e only for the critical journeys** (≈ 6–8 flows that need a browser), tagged `@smoke`,
+  on one desktop and one mobile project (e.g. Playwright `devices['iPhone 13']`).
+- **Responsive check once**, as a dedicated spec that opens the key pages at 360 / 768 / 1280px and
+  asserts no horizontal scroll (`scrollWidth <= clientWidth`), not by running every journey at
+  every width.
+- Speed settings: log in once per role in global setup and reuse `storageState`; create test data
+  through the API, never through the UI; `fullyParallel: true`; `retries: 0` locally;
+  `trace: 'retain-on-failure'`; unique data per test (no shared counters/totals).
+- Tests must be deterministic: no sleeps, seeded data, isolated state. For timers/scheduled
+  jobs use the backend's test hooks (see the contract's "Test-only" section). Never wait for a
+  real interval. If a hook is missing, report it as a backend gap. When waiting is unavoidable,
+  poll (`expect.poll`) and set that test's timeout from the known delay.
+
+**Time box**
+1. Commit your test files early (before the first run).
+2. Run the full suite once with a quiet reporter.
+3. Fix only test-side problems (selectors, timing), then `--last-failed`; at most 2 reruns.
+4. Report. Don't loop on fixes; app bugs go back to the brain.
 
 **Report back:** a table `Criterion | Test | Result`, then each failure in ≤5 lines: test name,
 expected vs actual, ≤10 lines of output, and which agent likely owns the fix (frontend/backend/devops).
+Also say what slowed you down (blocked commands, permission prompts, slow app start).
 ```
 
 ### `security.md`
@@ -597,18 +968,60 @@ jobs:
   test:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read            # runs PR code: read-only
     steps:
       - uses: actions/checkout@v7
-      # <setup-node, npm ci, lint, tests with line+branch coverage per project>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: '*/package-lock.json'
+      # <npm ci, lint, tests with line+branch coverage per project>
       # Tests use the committed .env.test — no extra secrets.
+      # <upload the coverage summaries as an artifact for the badges job>
 
+  badges:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write           # main only
+    steps:
+      - uses: actions/checkout@v7
       # Coverage badges → orphan `badges` branch at coverage/<project>/{line,branch}.svg.
-      # Only on push to main. Generate the SVGs from the coverage summaries, then commit
-      # them to the `badges` branch (never to main).
+      # Download the coverage artifact, generate the SVGs, commit them to `badges` (never to main).
+
+  e2e:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      # Build the app image ONCE, with the layer cache, and load it for compose.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # <docker compose -p <app>-e2e --env-file <committed dev/CI env file> up -d --wait (using app:ci)>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ hashFiles('e2e/package-lock.json') }}
+      # <cd e2e && npm ci && npx playwright install chromium --with-deps
+      #  && BASE_URL=<app url> npx playwright test --reporter=line>
 
   release:
-    needs: test
+    needs: [test, e2e]
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
@@ -659,12 +1072,16 @@ jobs:
             type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - uses: docker/setup-buildx-action@v3
+
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha        # reuses the layers the e2e job just built
+          cache-to: type=gha,mode=max
 ```
 
 ### `vscode-launch.jsonc` → `.vscode/launch.json`
@@ -678,6 +1095,8 @@ jobs:
       "presentation": { "hidden": true },
       "type": "node",
       "request": "launch",
+      // Starts the third-party services (DB, mail sink…) first, so F5 works on a fresh machine.
+      "preLaunchTask": "infra: up",
       "cwd": "${workspaceFolder}/backend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
@@ -732,23 +1151,47 @@ jobs:
   "tasks": [
     // Run once after cloning (Terminal > Run Task... > backend: install / frontend: install).
     { "label": "backend: install", "type": "npm", "script": "install", "path": "backend", "problemMatcher": [] },
-    { "label": "frontend: install", "type": "npm", "script": "install", "path": "frontend", "problemMatcher": [] }
+    { "label": "frontend: install", "type": "npm", "script": "install", "path": "frontend", "problemMatcher": [] },
+    // Third-party services only (not the app image), published on 127.0.0.1. Run by F5.
+    {
+      "label": "infra: up",
+      "type": "shell",
+      "command": "docker compose --env-file <committed dev env file> --profile dev up -d --wait <db> <mail-sink>",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "infra: stop",
+      "type": "shell",
+      "command": "docker compose --env-file <committed dev env file> --profile dev stop <db> <mail-sink>",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
   ]
 }
 ```
+
+> If F5 starts and both sessions stop at once: something else holds the backend port (a stray
+> server from an agent or a previous run). With `stopAll: true`, the backend failing to bind
+> stops the UI too. Free the port (or run `infra: stop` and kill the stray process) and retry.
 
 ---
 
 ## 8. How to use it
 
-1. Create the files above in your project (and fill in `CLAUDE.md`).
+1. Create the files above in your project (and fill in `CLAUDE.md`), or clone your starter repo
+   that already has them plus the plumbing (then skip step 2).
+   **Restart Claude Code afterwards:** skills and agent types are loaded when a session starts,
+   so `/task` and the `frontend`/`backend`/… agents don't exist in the session that created them.
 2. Open Claude Code in the project. **First run, once:**
 
    ```
-   /task bootstrap
+   /task init
    ```
 
-   Only `devops` runs: Docker, CI (badges + versioned image release), `.vscode`.
+   The brain creates the empty project folders (`frontend/`, `backend/`, `e2e/`, `docs/`,
+   `.github/scripts/`), then only `devops` runs: the single-image Dockerfile, compose, CI (badges +
+   versioned image release), `.vscode`.
 3. For each feature or fix, **start a fresh session** (`/clear`) and type:
 
    ```
@@ -760,9 +1203,14 @@ jobs:
 
 4. The brain triages it (S/M/L). For M/L, answer its clarifying questions and approve the
    requirement summary.
-5. It writes the spec/contract, starts only the agents that have work, and comes back with a
-   report.
-6. Run `/cost` for the session total (a CLI command, uses no tokens). Review the integration branch yourself before merging to main.
+5. It writes the spec/contract (+ `docs/api-types.ts` and a sized task board). Then run
+   `/compact` and `/model sonnet` as it suggests. Without a starter repo it first runs a short
+   skeleton step; then at most 2 backend + 2 frontend agents work in parallel, and it comes back
+   with a report.
+6. When everything passes, the brain merges the integration branch into your local `main` and
+   deletes the agent worktrees and branches, so `main` is never left behind and the branch list
+   stays clean. It never pushes: review `main` (`git log`, `git diff origin/main`) and push
+   yourself. Run `/cost` for the exact session total.
 
 ### Starter prompt (if you prefer not to use the skill)
 
@@ -782,26 +1230,77 @@ Start with Phase T (triage), then Phase 0: ask me your clarifying questions befo
 
 | Saving | Where |
 |---|---|
+| Starter repo: no init/skeleton/image debugging per project | §2, brain Phase T / 1b |
+| MVP slice recommended for L requests | brain Phase 0 |
+| Few agents (≤ 2 backend + 2 frontend): orientation (~30–50k each) paid 4×, not 15× | brain Phase 1 / 2, rule 3 |
+| `docs/core.md` cheat-sheet instead of exploring core code | brain Phase 1b, agent prompts |
+| Brain: Opus only for clarify + spec, then `/compact` + `/model sonnet`; merges in waves | brain intro, Phase 2 |
+| Terse contract (types file + tables, no prose that repeats types) | brain Phase 1 |
+| Contract review before spawning: fewer agent continuations | brain Phase 1 |
+| Verification once: agents run `test:ci` once; brain does 3× + image; tester does responsive | `CLAUDE.md`, brain Phase 3, agent prompts |
+| Per-test mocks: no post-merge mock collisions and fix rounds | `frontend.md` |
 | Small tasks skip the team (S = brain alone or one agent) | brain Phase T |
 | Only agents with tasks are spawned; devops only for infra changes | brain Phase T / 2 |
-| One-time `/task bootstrap` for Docker/CI/`.vscode` | brain Phase T |
+| One-time `/task init` for Docker/CI/`.vscode` | brain Phase T |
 | Long reference code lives in `.claude/templates/`, read only when needed | §7 |
 | Reports capped at ~150 words, failing lines only | `CLAUDE.md` token rules, agent prompts |
-| Fix loop continues the same agent (SendMessage), max 2 rounds | brain Phase 5 |
+| Fix loop continues the same agent only while its context is small; otherwise a fresh agent with just the evidence; max 2 rounds | brain Phase 5 |
+| Contract types written once (`docs/api-types.ts`), not re-typed by each side | brain Phase 1 |
 | Quiet test/install output, only affected tests while fixing | `CLAUDE.md` token rules |
 | Generated folders and lockfiles blocked from reading | `.claude/settings.json` |
 | `effort: medium` for implementers and tester | agent frontmatter |
 | Repo scan on `haiku` via `Explore` instead of on Opus | brain Phase 0 |
 | Security: full Opus review only when risky files changed | brain Phase 4 |
 
+**Build & test speed: what this template does (and why)**
+
+The slowest part of a run is rarely the tests themselves. It's a broken or uncached image
+build discovered late, and agents waiting on things they can't fix.
+
+| Speed-up | Where |
+|---|---|
+| Starter repo, or a thin time-boxed skeleton; brain builds the image right after it | §2, brain Phase 1b |
+| Tasks sized per agent (~30–45 min) and balanced: no long pole | brain Phase 1 |
+| Each task starts when ITS dependency merges; finished branches merged in one turn | brain Phase 2 |
+| Cross-module function signatures in tasks.md: modules don't wait on each other | brain Phase 1, `backend.md` |
+| Env table with types in the contract: no backend↔compose format mismatches | brain Phase 1, `backend.md`, `devops.md` |
+| Backend starts the built server with a dummy UI before reporting: static-serving bugs caught early | `backend.md` |
+| Port preflight + one shared DB/mail container for all agents | brain Phase T |
+| `.gitattributes` LF for `*.sh`: scripts don't break in Linux containers | brain init, `devops.md` |
+| Brain fixes ≤5-line glue itself instead of a full agent round | brain Phase 5 |
+| CI calls package/`ci-*.sh` scripts; devops replays every CI job locally; brain watches the real run after a push | `devops.md`, `backend.md`, `frontend.md`, brain Phase 3 / 6 |
+| Image smoke-built by the brain in Phase 3, before the tester starts | brain Phase 3 |
+| Brain starts the stack; the tester never builds images | brain Phase 3/4, `tester.md` |
+| One runtime version (`.nvmrc`) used by Dockerfile, CI and `engines` | `CLAUDE.md`, `devops.md` |
+| BuildKit npm cache mount, `npm ci --prefer-offline`, no `--silent` in Docker | `devops.md` |
+| Copy files `postinstall` needs before `npm ci`; lockfile verified with clean `npm ci` | `devops.md`, `backend.md`, `frontend.md` |
+| CI: image built once with GHA layer cache; e2e reuses it; release reuses the cache | `ci.yml` |
+| Only Chromium installed for Playwright; browsers cached | `ci.yml`, `devops.md` |
+| Test pyramid: ACs at API level, few `@smoke` UI journeys, one responsive spec | `tester.md` |
+| `storageState` login, API-seeded data, `fullyParallel`, `retries: 0` | `tester.md` |
+| Test hooks + env-configurable intervals: no waiting on real timers | `backend.md` |
+| Tester time box: one run → `--last-failed` → max 2 reruns → report | brain Phase 4, `tester.md` |
+| Per-run test DB/schema: parallel agents don't deadlock each other | `backend.md` |
+| Slow commands pre-allowed: background agents don't stall on prompts | `.claude/settings.json` |
+| `127.0.0.1` for local services; separate e2e port/project; clean up processes | `CLAUDE.md`, `devops.md` |
+
 **Habits**
 - **Fresh session per `/task`** (`/clear`). State lives in `docs/`, not in the conversation.
-- **Check `/cost`** after each run. If runs keep getting expensive, tighten the prompt or
-  model of the agent doing the most work.
+- **Check `/cost`** after each run. Each agent's completion notice shows its tokens; if one agent
+  type is always the most expensive, tighten its prompt or its model.
 - **Start small.** Try it on one small feature first; tune the agent prompts from what goes wrong.
+- **Interview / demo budget:** starter repo + MVP slice + 1 backend and 1 frontend agent + tester
+  (security as a light `sonnet` pass). Brain on Opus only until the spec is approved.
 - **Tool permissions:** `security` has no Write/Edit on purpose. `tester` is told not to
   touch app code. Tighten `tools:` further if an agent oversteps.
 - **Conflicts:** if two agents need the same file, the plan is wrong — the brain should
   re-split ownership, not let them both edit it.
+- **Push `main`, not the feature branch.** In VS Code, check the status bar shows `main` before
+  "Commit & Push" / "Publish Branch". If a feature branch became the GitHub default by mistake:
+  `git push -u origin main`, set the default with
+  `gh api -X PATCH repos/<owner>/<repo> -f default_branch=main`, then delete the old branch on GitHub.
+- **Leftover branches:** if a run was interrupted and `worktree-agent-*` branches pile up, check
+  `git branch --no-merged main` (anything listed still has unmerged work), then remove the merged
+  ones with `git worktree remove` + `git worktree prune` + `git branch -d`.
 - **Iterate on prompts:** when an agent repeatedly makes the same mistake, add one line to
   its `.md` file. That's the whole tuning loop.
