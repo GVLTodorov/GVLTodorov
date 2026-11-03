@@ -19,9 +19,7 @@ complex ideas and communicate in a concise and efficient manner.
 
 [Cronner](https://github.com/GVLTodorov/Cronner)
 
-[WeatherExporrter](https://github.com/GVLTodorov/WeatherExporrter)
-
-[XiaomiExporrter](https://github.com/GVLTodorov/XiaomiExporrter)
+[Exporrters](https://github.com/GVLTodorov/Exporrters)
 
 [Monorepo](https://github.com/GVLTodorov/Monorepo)
 
