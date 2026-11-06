@@ -23,9 +23,7 @@ complex ideas and communicate in a concise and efficient manner.
 
 [Monorepo](https://github.com/GVLTodorov/Monorepo)
 
-[PlanningPoker](https://github.com/GVLTodorov/PlanningPoker)
-
-[RetroBoard](https://github.com/GVLTodorov/RetroBoard)
+[Workshop](https://github.com/GVLTodorov/Workshop)
 
 ### Stats
 
