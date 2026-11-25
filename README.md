@@ -11,7 +11,7 @@ complex ideas and communicate in a concise and efficient manner.
 позволяват ефективна комуникация в съкратен формат.
 ```
 
-[Facts](https://github.com/GVLTodorov/GVLTodorov/tree/main/FACTS.MD)
+[Facts](https://github.com/GVLTodorov/GVLTodorov/tree/main/tutorials/facts)
 
 [Tutorials](https://github.com/GVLTodorov/GVLTodorov/tree/main/tutorials)
 
