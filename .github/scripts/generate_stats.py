@@ -251,27 +251,39 @@ def collect() -> dict:
 
 # --------------------------------------------------------------------------- SVG
 
-STYLE = """
-  .bg { fill: #ffffff; stroke: #d0d7de; }
-  .title { font: 600 18px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #0969da; }
-  .label { font: 400 14px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #424a53; }
-  .value { font: 600 14px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #1f2328; }
-  .muted { font: 400 11px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #6e7781; }
-  .lang  { font: 400 12px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #424a53; }
-  .icon  { fill: #0969da; }
-  .track { fill: #eaeef2; }
-  .seg   { stroke: #ffffff; stroke-width: 2; }
-  @media (prefers-color-scheme: dark) {
-    .bg { fill: #0d1117; stroke: #30363d; }
-    .title { fill: #58a6ff; }
-    .label, .lang { fill: #c9d1d9; }
-    .value { fill: #f0f6fc; }
-    .muted { fill: #8b949e; }
-    .icon { fill: #58a6ff; }
-    .track { fill: #21262d; }
-    .seg { stroke: #0d1117; }
-  }
+FONTS = """
+  .title { font: 600 18px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .label { font: 400 14px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .value { font: 600 14px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .muted { font: 400 11px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .lang  { font: 400 12px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .seg   { stroke-width: 2; }
 """
+
+PALETTES = {
+    "light": {"bg": "#ffffff", "border": "#d0d7de", "title": "#0969da", "label": "#424a53",
+              "value": "#1f2328", "muted": "#6e7781", "icon": "#0969da", "track": "#eaeef2"},
+    "dark": {"bg": "#0d1117", "border": "#30363d", "title": "#58a6ff", "label": "#c9d1d9",
+             "value": "#f0f6fc", "muted": "#8b949e", "icon": "#58a6ff", "track": "#21262d"},
+}
+
+
+def colors(p: dict) -> str:
+    return (
+        f".bg {{ fill: {p['bg']}; stroke: {p['border']}; }} .title {{ fill: {p['title']}; }} "
+        f".label, .lang {{ fill: {p['label']}; }} .value {{ fill: {p['value']}; }} "
+        f".muted {{ fill: {p['muted']}; }} .icon {{ fill: {p['icon']}; }} "
+        f".track {{ fill: {p['track']}; }} .seg {{ stroke: {p['bg']}; }}"
+    )
+
+
+# THEME: "dark" (default), "light", or "auto" (follows the viewer's OS/GitHub theme)
+THEME = (os.environ.get("THEME") or "dark").strip().lower()
+if THEME == "auto":
+    STYLE = FONTS + colors(PALETTES["light"]) + \
+        "\n  @media (prefers-color-scheme: dark) { " + colors(PALETTES["dark"]) + " }\n"
+else:
+    STYLE = FONTS + colors(PALETTES.get(THEME, PALETTES["dark"])) + "\n"
 
 # Octicons (16px), MIT licensed - https://primer.style/octicons
 ICONS = {

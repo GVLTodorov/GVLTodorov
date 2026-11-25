@@ -38,6 +38,7 @@ jobs:
           EXCLUDE_REPOS: ""   # e.g. "some-vendored-repo,another"
           EXCLUDE_LANGS: ""   # e.g. "HTML,CSS,Jupyter Notebook"
           LANGS_COUNT: "8"
+          THEME: dark         # dark | light | auto (follows viewer's theme)
         run: python .github/scripts/generate_stats.py
 
       - name: Commit changes

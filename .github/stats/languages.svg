@@ -1,25 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="495" height="200" viewBox="0 0 495 200" role="img" aria-label="Most Used Languages">
 <title>Most Used Languages</title>
 <style>
-  .bg { fill: #ffffff; stroke: #d0d7de; }
-  .title { font: 600 18px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #0969da; }
-  .label { font: 400 14px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #424a53; }
-  .value { font: 600 14px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #1f2328; }
-  .muted { font: 400 11px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #6e7781; }
-  .lang  { font: 400 12px 'Segoe UI', Ubuntu, -apple-system, sans-serif; fill: #424a53; }
-  .icon  { fill: #0969da; }
-  .track { fill: #eaeef2; }
-  .seg   { stroke: #ffffff; stroke-width: 2; }
-  @media (prefers-color-scheme: dark) {
-    .bg { fill: #0d1117; stroke: #30363d; }
-    .title { fill: #58a6ff; }
-    .label, .lang { fill: #c9d1d9; }
-    .value { fill: #f0f6fc; }
-    .muted { fill: #8b949e; }
-    .icon { fill: #58a6ff; }
-    .track { fill: #21262d; }
-    .seg { stroke: #0d1117; }
-  }
+  .title { font: 600 18px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .label { font: 400 14px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .value { font: 600 14px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .muted { font: 400 11px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .lang  { font: 400 12px 'Segoe UI', Ubuntu, -apple-system, sans-serif; }
+  .seg   { stroke-width: 2; }
+.bg { fill: #0d1117; stroke: #30363d; } .title { fill: #58a6ff; } .label, .lang { fill: #c9d1d9; } .value { fill: #f0f6fc; } .muted { fill: #8b949e; } .icon { fill: #58a6ff; } .track { fill: #21262d; } .seg { stroke: #0d1117; }
 </style>
 <rect class="bg" x="0.5" y="0.5" rx="6" width="494" height="199"/>
 <text class="title" x="25" y="36">Most Used Languages</text>
