@@ -1,0 +1,53 @@
+name: Profile stats
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # daily, 03:17 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/scripts/generate_stats.py
+      - .github/workflows/stats.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: profile-stats
+  cancel-in-progress: true
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate stats
+        env:
+          # Classic PAT with `repo` + `read:user` scopes, so private repos are counted.
+          GH_STATS_TOKEN: ${{ secrets.GH_STATS_TOKEN }}
+          OUTPUT_DIR: .github/stats
+          AFFILIATIONS: OWNER # add ,COLLABORATOR,ORGANIZATION_MEMBER to include org/shared repos
+          INCLUDE_FORKS: "false"
+          INCLUDE_ARCHIVED: "true"
+          EXCLUDE_REPOS: ""   # e.g. "some-vendored-repo,another"
+          EXCLUDE_LANGS: ""   # e.g. "HTML,CSS,Jupyter Notebook"
+          LANGS_COUNT: "8"
+        run: python .github/scripts/generate_stats.py
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/stats
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "chore: update profile stats [skip ci]"
+            git push
+          fi

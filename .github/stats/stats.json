@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-11-25T13:46:04Z",
+  "login": "GVLTodorov",
+  "name": "Georgi Todorov",
+  "followers": 5,
+  "stars": 2,
+  "forks": 0,
+  "repos_total": 15,
+  "repos_public": 7,
+  "repos_private": 8,
+  "commits_last_year": 760,
+  "commits_all_time": 3440,
+  "commits_per_year": {
+    "2019": 0,
+    "2020": 962,
+    "2021": 509,
+    "2022": 565,
+    "2023": 377,
+    "2024": 93,
+    "2025": 204,
+    "2026": 730
+  },
+  "prs_total": 49,
+  "prs_merged": 41,
+  "issues_total": 4,
+  "reviews_all_time": 0,
+  "contributed_to": 19,
+  "contributed_to_external": 4,
+  "languages": [
+    {
+      "name": "Python",
+      "color": "#3572A5",
+      "size": 3117780,
+      "repos": 2,
+      "percent": 35.3
+    },
+    {
+      "name": "C#",
+      "color": "#7355dd",
+      "size": 2652805,
+      "repos": 7,
+      "percent": 30.04
+    },
+    {
+      "name": "TypeScript",
+      "color": "#3178c6",
+      "size": 1894050,
+      "repos": 3,
+      "percent": 21.45
+    },
+    {
+      "name": "HTML",
+      "color": "#e34c26",
+      "size": 531717,
+      "repos": 6,
+      "percent": 6.02
+    },
+    {
+      "name": "CSS",
+      "color": "#663399",
+      "size": 300543,
+      "repos": 6,
+      "percent": 3.4
+    },
+    {
+      "name": "Go",
+      "color": "#00ADD8",
+      "size": 182213,
+      "repos": 1,
+      "percent": 2.06
+    },
+    {
+      "name": "JavaScript",
+      "color": "#f1e05a",
+      "size": 66540,
+      "repos": 7,
+      "percent": 0.75
+    },
+    {
+      "name": "RouterOS Script",
+      "color": "#DE3941",
+      "size": 33806,
+      "repos": 1,
+      "percent": 0.38
+    },
+    {
+      "name": "Dockerfile",
+      "color": "#384d54",
+      "size": 26147,
+      "repos": 12,
+      "percent": 0.3
+    },
+    {
+      "name": "PowerShell",
+      "color": "#012456",
+      "size": 17946,
+      "repos": 2,
+      "percent": 0.2
+    },
+    {
+      "name": "Shell",
+      "color": "#89e051",
+      "size": 7819,
+      "repos": 6,
+      "percent": 0.09
+    }
+  ],
+  "languages_total_bytes": 8831366,
+  "settings": {
+    "affiliations": [
+      "OWNER"
+    ],
+    "include_forks": false,
+    "include_archived": true,
+    "excluded_repos": 0,
+    "excluded_languages": []
+  }
+}
