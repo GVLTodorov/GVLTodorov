@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-25T13:52:35Z",
+  "generated_at": "2026-11-26T12:50:53Z",
   "login": "GVLTodorov",
   "name": "Georgi Todorov",
   "followers": 5,
@@ -8,8 +8,8 @@
   "repos_total": 15,
   "repos_public": 7,
   "repos_private": 8,
-  "commits_last_year": 761,
-  "commits_all_time": 3441,
+  "commits_last_year": 765,
+  "commits_all_time": 3445,
   "commits_per_year": {
     "2019": 0,
     "2020": 962,
@@ -18,7 +18,7 @@
     "2023": 377,
     "2024": 93,
     "2025": 204,
-    "2026": 731
+    "2026": 735
   },
   "prs_total": 49,
   "prs_merged": 41,
@@ -32,21 +32,21 @@
       "color": "#3572A5",
       "size": 3117780,
       "repos": 2,
-      "percent": 35.3
+      "percent": 35.29
     },
     {
       "name": "C#",
       "color": "#7355dd",
-      "size": 2652805,
+      "size": 2655140,
       "repos": 7,
-      "percent": 30.04
+      "percent": 30.06
     },
     {
       "name": "TypeScript",
       "color": "#3178c6",
       "size": 1894050,
       "repos": 3,
-      "percent": 21.45
+      "percent": 21.44
     },
     {
       "name": "HTML",
@@ -105,7 +105,7 @@
       "percent": 0.09
     }
   ],
-  "languages_total_bytes": 8831366,
+  "languages_total_bytes": 8833701,
   "settings": {
     "affiliations": [
       "OWNER"

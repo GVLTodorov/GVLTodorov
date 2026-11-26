@@ -11,14 +11,14 @@
 </style>
 <rect class="bg" x="0.5" y="0.5" rx="6" width="494" height="199"/>
 <text class="title" x="25" y="36">Most Used Languages</text>
-<clipPath id="bar"><rect x="25" y="54" width="445" height="8" rx="4"/></clipPath><rect class="track" x="25" y="54" width="445" height="8" rx="4"/><g clip-path="url(#bar)"><rect class="seg" x="25.00" y="53" width="157.10" height="10" fill="#3572A5"/><rect class="seg" x="182.10" y="53" width="133.67" height="10" fill="#7355dd"/><rect class="seg" x="315.77" y="53" width="95.44" height="10" fill="#3178c6"/><rect class="seg" x="411.21" y="53" width="26.79" height="10" fill="#e34c26"/><rect class="seg" x="438.00" y="53" width="15.14" height="10" fill="#663399"/><rect class="seg" x="453.15" y="53" width="9.18" height="10" fill="#00ADD8"/><rect class="seg" x="462.33" y="53" width="3.35" height="10" fill="#f1e05a"/><rect class="seg" x="465.68" y="53" width="1.70" height="10" fill="#DE3941"/><rect class="track" x="467.38" y="54" width="2.62" height="8"/></g>
-<g transform="translate(25,86)"><circle cx="5" cy="-4" r="5" fill="#3572A5"/><text class="lang" x="16" y="0">Python 35.30%</text></g>
-<g transform="translate(247,86)"><circle cx="5" cy="-4" r="5" fill="#7355dd"/><text class="lang" x="16" y="0">C# 30.04%</text></g>
-<g transform="translate(25,110)"><circle cx="5" cy="-4" r="5" fill="#3178c6"/><text class="lang" x="16" y="0">TypeScript 21.45%</text></g>
+<clipPath id="bar"><rect x="25" y="54" width="445" height="8" rx="4"/></clipPath><rect class="track" x="25" y="54" width="445" height="8" rx="4"/><g clip-path="url(#bar)"><rect class="seg" x="25.00" y="53" width="157.06" height="10" fill="#3572A5"/><rect class="seg" x="182.06" y="53" width="133.75" height="10" fill="#7355dd"/><rect class="seg" x="315.81" y="53" width="95.41" height="10" fill="#3178c6"/><rect class="seg" x="411.23" y="53" width="26.79" height="10" fill="#e34c26"/><rect class="seg" x="438.01" y="53" width="15.14" height="10" fill="#663399"/><rect class="seg" x="453.15" y="53" width="9.18" height="10" fill="#00ADD8"/><rect class="seg" x="462.33" y="53" width="3.35" height="10" fill="#f1e05a"/><rect class="seg" x="465.68" y="53" width="1.70" height="10" fill="#DE3941"/><rect class="track" x="467.38" y="54" width="2.62" height="8"/></g>
+<g transform="translate(25,86)"><circle cx="5" cy="-4" r="5" fill="#3572A5"/><text class="lang" x="16" y="0">Python 35.29%</text></g>
+<g transform="translate(247,86)"><circle cx="5" cy="-4" r="5" fill="#7355dd"/><text class="lang" x="16" y="0">C# 30.06%</text></g>
+<g transform="translate(25,110)"><circle cx="5" cy="-4" r="5" fill="#3178c6"/><text class="lang" x="16" y="0">TypeScript 21.44%</text></g>
 <g transform="translate(247,110)"><circle cx="5" cy="-4" r="5" fill="#e34c26"/><text class="lang" x="16" y="0">HTML 6.02%</text></g>
 <g transform="translate(25,134)"><circle cx="5" cy="-4" r="5" fill="#663399"/><text class="lang" x="16" y="0">CSS 3.40%</text></g>
 <g transform="translate(247,134)"><circle cx="5" cy="-4" r="5" fill="#00ADD8"/><text class="lang" x="16" y="0">Go 2.06%</text></g>
 <g transform="translate(25,158)"><circle cx="5" cy="-4" r="5" fill="#f1e05a"/><text class="lang" x="16" y="0">JavaScript 0.75%</text></g>
 <g transform="translate(247,158)"><circle cx="5" cy="-4" r="5" fill="#DE3941"/><text class="lang" x="16" y="0">RouterOS Script 0.38%</text></g>
-<text class="muted" x="470" y="186" text-anchor="end">15 repos · updated 2026-11-25</text>
+<text class="muted" x="470" y="186" text-anchor="end">15 repos · updated 2026-11-26</text>
 </svg>
