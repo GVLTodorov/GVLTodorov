@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-27T12:44:13Z",
+  "generated_at": "2026-11-28T11:58:25Z",
   "login": "GVLTodorov",
   "name": "Georgi Todorov",
   "followers": 5,
@@ -8,8 +8,8 @@
   "repos_total": 15,
   "repos_public": 7,
   "repos_private": 8,
-  "commits_last_year": 765,
-  "commits_all_time": 3445,
+  "commits_last_year": 772,
+  "commits_all_time": 3452,
   "commits_per_year": {
     "2019": 0,
     "2020": 962,
@@ -18,10 +18,10 @@
     "2023": 377,
     "2024": 93,
     "2025": 204,
-    "2026": 735
+    "2026": 742
   },
-  "prs_total": 49,
-  "prs_merged": 41,
+  "prs_total": 50,
+  "prs_merged": 42,
   "issues_total": 4,
   "reviews_all_time": 0,
   "contributed_to": 19,
@@ -32,42 +32,42 @@
       "color": "#3572A5",
       "size": 3117780,
       "repos": 2,
-      "percent": 35.29
+      "percent": 34.97
     },
     {
       "name": "C#",
       "color": "#7355dd",
       "size": 2655140,
       "repos": 7,
-      "percent": 30.06
+      "percent": 29.78
     },
     {
       "name": "TypeScript",
       "color": "#3178c6",
       "size": 1894050,
       "repos": 3,
-      "percent": 21.44
+      "percent": 21.25
     },
     {
       "name": "HTML",
       "color": "#e34c26",
       "size": 531717,
       "repos": 6,
-      "percent": 6.02
+      "percent": 5.96
     },
     {
       "name": "CSS",
       "color": "#663399",
       "size": 300543,
       "repos": 6,
-      "percent": 3.4
+      "percent": 3.37
     },
     {
       "name": "Go",
       "color": "#00ADD8",
-      "size": 182213,
+      "size": 262736,
       "repos": 1,
-      "percent": 2.06
+      "percent": 2.95
     },
     {
       "name": "JavaScript",
@@ -86,7 +86,7 @@
     {
       "name": "Dockerfile",
       "color": "#384d54",
-      "size": 26147,
+      "size": 26882,
       "repos": 12,
       "percent": 0.3
     },
@@ -105,7 +105,7 @@
       "percent": 0.09
     }
   ],
-  "languages_total_bytes": 8833701,
+  "languages_total_bytes": 8914959,
   "settings": {
     "affiliations": [
       "OWNER"
