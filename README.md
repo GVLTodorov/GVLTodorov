@@ -27,9 +27,9 @@ complex ideas and communicate in a concise and efficient manner.
 
 ### Stats
 
-![GitHub stats](.github/stats/stats.svg)
+![GitHub stats](https://raw.githubusercontent.com/GVLTodorov/GVLTodorov/main/.github/stats/stats.svg)
 
-![Most used languages](.github/stats/languages.svg)
+![Most used languages](https://raw.githubusercontent.com/GVLTodorov/GVLTodorov/main/.github/stats/languages.svg)
 
 ### Trophies
 
